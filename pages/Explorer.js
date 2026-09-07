@@ -191,12 +191,13 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
         window.location.reload(); 
         return;
       }
-      if (!isAppMode || allNodes.length === 0) {
+      const hasCache = allNodes.length > 0;
+      if (!isAppMode || !hasCache) {
         setError(err.message === 'LOAD_FAILED' ? 'load-failed' : 'source-error');
+        console.error("Failed to load data", err);
       } else {
         console.warn("Soft handling fetch failure to keep offline/cached view active:", err);
       }
-      console.error("Failed to load data", err);
     } finally {
       isFetchingRef.current = false;
       setSyncing(false);

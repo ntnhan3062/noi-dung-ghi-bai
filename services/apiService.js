@@ -24,13 +24,38 @@ export const apiService = {
         }
         return [];
       }
-      try { return JSON.parse(text); } catch (e) { 
+      try {
+        const data = JSON.parse(text);
+        if (Array.isArray(data)) {
+          try {
+            localStorage.setItem('cached_nodes', JSON.stringify(data));
+          } catch (e) {
+            /* ignore localStorage storage quota errors */
+          }
+        }
+        return data;
+      } catch (e) { 
         console.error("JSON parse error:", e, "Text:", text.substring(0, 50));
         throw new Error('INVALID_JSON');
       }
     } catch (error) {
       if (error.message === 'UNAUTHORIZED') throw error;
-      console.error("API Error in getAllNodes:", error);
+      
+      // Fallback offline cache
+      try {
+        const cached = localStorage.getItem('cached_nodes');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            console.warn("API fetch failed, fallback using cached nodes from localStorage:", error.message || error);
+            return parsed;
+          }
+        }
+      } catch (cacheErr) {
+        // ignore cache read error
+      }
+
+      console.warn("API Error in getAllNodes:", error.message || error);
       throw error;
     }
   },
