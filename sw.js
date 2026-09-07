@@ -1,33 +1,33 @@
 const CACHE_NAME = 'noi-dung-ghi-bai-v1';
 const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/index.css',
-  '/index.js',
-  '/App.js',
-  '/utils/html.js',
-  '/services/apiService.js',
-  '/context/BreadcrumbContext.js',
-  '/context/ClassContext.js',
-  '/context/LayoutErrorContext.js',
-  '/components/Breadcrumbs.js',
-  '/components/ChangePasswordModal.js',
-  '/components/EditorModal.js',
-  '/components/ErrorBoundary.js',
-  '/components/NodeItem.js',
-  '/components/SettingsModal.js',
-  '/components/StatusPage.js',
-  '/pages/AuthGuard.js',
-  '/pages/ClassManagementPage.js',
-  '/pages/Explorer.js',
-  '/pages/SettingsPage.js'
+  './',
+  'index.html',
+  'index.css',
+  'index.js',
+  'App.js',
+  'utils/html.js',
+  'services/apiService.js',
+  'context/BreadcrumbContext.js',
+  'context/ClassContext.js',
+  'context/LayoutErrorContext.js',
+  'components/Breadcrumbs.js',
+  'components/ChangePasswordModal.js',
+  'components/EditorModal.js',
+  'components/ErrorBoundary.js',
+  'components/NodeItem.js',
+  'components/SettingsModal.js',
+  'components/StatusPage.js',
+  'pages/AuthGuard.js',
+  'pages/ClassManagementPage.js',
+  'pages/Explorer.js',
+  'pages/SettingsPage.js'
 ];
 
 // Install Service Worker and cache resources
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker] Caching app shell & static assets');
+      console.log('[Service Worker] Caching app shell & static assets (relative paths)');
       return cache.addAll(ASSETS_TO_CACHE);
     }).then(() => {
       return self.skipWaiting();
@@ -57,18 +57,19 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
+  const scope = self.registration.scope;
 
   // Bypass API calls, let them fetch from network normally
   if (url.pathname.startsWith('/api/')) {
     return;
   }
 
-  // Handle SPA navigation requests: Fallback to cached index.html if offline
+  // Handle SPA navigation requests: Fallback to cached index.html or scope path if offline
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request).catch(() => {
         console.log('[Service Worker] Offline fallback to index.html for navigation:', url.pathname);
-        return caches.match('/index.html') || caches.match('/');
+        return caches.match(new URL('index.html', scope).href) || caches.match(scope);
       })
     );
     return;
@@ -81,7 +82,13 @@ self.addEventListener('fetch', (event) => {
                 url.origin.includes('fonts.gstatic.com') || 
                 url.origin.includes('cdn.jsdelivr.net');
 
-  if (isCDN || ASSETS_TO_CACHE.includes(url.pathname)) {
+  // Check if it matches any of local cached assets
+  const isLocalAsset = ASSETS_TO_CACHE.some(asset => {
+    const assetUrl = new URL(asset, scope).href;
+    return request.url === assetUrl;
+  });
+
+  if (isCDN || isLocalAsset) {
     event.respondWith(
       caches.open(CACHE_NAME).then((cache) => {
         return cache.match(request).then((cachedResponse) => {

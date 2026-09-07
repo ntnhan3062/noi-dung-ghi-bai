@@ -1,7 +1,7 @@
 
 import { NodeType } from '../types.js';
 
-const API_URL = 'https://noi-dung-ghi-bai.nhanns23062012.workers.dev';
+const API_URL = 'https://noi-dung-ghi-bai.ntnhan3062.workers.dev';
 
 const getUrl = (endpoint) => {
   const searchParams = window.location.search;
