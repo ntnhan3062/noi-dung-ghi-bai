@@ -35,8 +35,15 @@ const getBasename = () => {
 
 const AnimatedRoutes = ({ isAppMode, uiConfig }) => {
     const location = useLocation();
+    const navigate = useNavigate();
     const prevDepth = useRef(0);
     const [direction, setDirection] = useState('right');
+
+    useEffect(() => {
+        if (location.pathname === '/' || location.pathname === '') {
+            navigate('/view', { replace: true });
+        }
+    }, [location.pathname, navigate]);
 
     useEffect(() => {
         const currentDepth = location.pathname.split('/').filter(Boolean).length;
@@ -53,6 +60,7 @@ const AnimatedRoutes = ({ isAppMode, uiConfig }) => {
         <div className=${`w-full ${animationClass}`}>
             <${Routes}>
                 <${Route} key="route-home" path="/" element=${html`<${Navigate} to="/view" replace />`} />
+                <${Route} key="route-index" index element=${html`<${Navigate} to="/view" replace />`} />
                 <${Route} key="route-view" path="/view" element=${html`<${Explorer} mode="view" isAppMode=${isAppMode} uiConfig=${uiConfig} />`} />
                 <${Route} key="route-view-node" path="/view/:nodeId" element=${html`<${Explorer} mode="view" isAppMode=${isAppMode} uiConfig=${uiConfig} />`} />
                 ${!isAppMode && html`
