@@ -14,7 +14,7 @@ export const ClassProvider = ({ children }) => {
     setLoading(true);
     try {
       const config = await apiService.getFullConfig();
-      const classList = config.classes || [];
+      const classList = (config && Array.isArray(config.classes)) ? config.classes : [];
       setClasses(classList);
       
       // Set default class

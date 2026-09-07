@@ -24,7 +24,10 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     try {
       if (isAppMode) {
         const cached = localStorage.getItem('cached_nodes');
-        return cached ? JSON.parse(cached) : [];
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed)) return parsed;
+        }
       }
     } catch {
       return [];
@@ -35,7 +38,10 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     try {
       if (isAppMode) {
         const cached = localStorage.getItem('cached_nodes');
-        return cached && JSON.parse(cached).length > 0 ? false : true;
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) return false;
+        }
       }
     } catch {
       return true;
@@ -148,7 +154,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     const shouldDelay = isAppMode && nodeId && !isBackground;
     const startTime = Date.now();
     
-    const hasCache = allNodes.length > 0;
+    const hasCache = Array.isArray(allNodes) && allNodes.length > 0;
     const isSilentlyFetching = isBackground || hasCache;
 
     if (!isSilentlyFetching) {
@@ -191,7 +197,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
         window.location.reload(); 
         return;
       }
-      const hasCache = allNodes.length > 0;
+      const hasCache = Array.isArray(allNodes) && allNodes.length > 0;
       if (!isAppMode || !hasCache) {
         setError(err.message === 'LOAD_FAILED' ? 'load-failed' : 'source-error');
         console.error("Failed to load data", err);

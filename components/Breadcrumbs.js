@@ -9,7 +9,8 @@ export const Breadcrumbs = ({ items, onNavigate, isLiquid }) => {
   const hasScrolledRef = useRef(false);
   const lastItemsIdRef = useRef('');
 
-  const currentItemsId = items.map(i => i.id).join('-');
+  const safeItems = Array.isArray(items) ? items : [];
+  const currentItemsId = safeItems.map(i => i.id).join('-');
 
   useEffect(() => {
     if (lastItemsIdRef.current !== currentItemsId) {
@@ -81,7 +82,7 @@ export const Breadcrumbs = ({ items, onNavigate, isLiquid }) => {
           <${Home} className="w-4 h-4" />
         </button>
         
-        ${items.map((item, index) => html`
+        ${safeItems.map((item, index) => html`
           <${React.Fragment} key=${`bc-group-${item.id || index}`}>
             <${ChevronRight} key=${`sep-${item.id || index}`} className="w-3 h-3 text-slate-400 flex-shrink-0 mx-1" />
             <button

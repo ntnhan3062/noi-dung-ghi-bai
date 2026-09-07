@@ -297,20 +297,25 @@ const App = () => {
           fullConfig = { classes: [], background: { images: [], active: false }, ui: { style: 'liquid', zoom: { view: true, edit: true, app: false } } };
       }
 
+      const bgImages = (fullConfig.background && Array.isArray(fullConfig.background.images)) ? fullConfig.background.images : [];
+      const bgActive = !!(fullConfig.background && fullConfig.background.active);
+      const uiStyle = (fullConfig.ui && fullConfig.ui.style) || 'liquid';
+      const uiZoom = (fullConfig.ui && fullConfig.ui.zoom) || { view: true, edit: true, app: false };
+
       setUiConfig({
-          style: fullConfig.ui.style,
-          zoom: fullConfig.ui.zoom,
-          backgroundActive: fullConfig.background.active,
-          backgrounds: fullConfig.background.images
+          style: uiStyle,
+          zoom: uiZoom,
+          backgroundActive: bgActive,
+          backgrounds: bgImages
       });
       try {
-          localStorage.setItem('style_mode', fullConfig.ui.style);
+          localStorage.setItem('style_mode', uiStyle);
       } catch (e) {
           console.error(e);
       }
       
-      if (fullConfig.background.active && fullConfig.background.images.length > 0) {
-        setCurrentBg(fullConfig.background.images[Math.floor(Math.random() * fullConfig.background.images.length)]);
+      if (bgActive && bgImages.length > 0) {
+        setCurrentBg(bgImages[Math.floor(Math.random() * bgImages.length)]);
       }
   }, []);
 
@@ -378,9 +383,9 @@ const App = () => {
   }, [isAppMode, initConfig]);
 
   useEffect(() => {
-    if (!uiConfig.backgroundActive || uiConfig.backgrounds.length <= 1) return;
+    if (!uiConfig?.backgroundActive || !Array.isArray(uiConfig?.backgrounds) || uiConfig.backgrounds.length <= 1) return;
     const interval = setInterval(() => {
-        const otherBgs = uiConfig.backgrounds.filter(bg => bg !== currentBg);
+        const otherBgs = (uiConfig.backgrounds || []).filter(bg => bg !== currentBg);
         if (otherBgs.length > 0) setCurrentBg(otherBgs[Math.floor(Math.random() * otherBgs.length)]);
     }, 60000);
     return () => clearInterval(interval);
@@ -390,7 +395,9 @@ const App = () => {
     try {
       if (!isAppMode) return false;
       const cached = localStorage.getItem('cached_nodes');
-      return cached && JSON.parse(cached).length > 0;
+      if (!cached) return false;
+      const parsed = JSON.parse(cached);
+      return Array.isArray(parsed) && parsed.length > 0;
     } catch {
       return false;
     }
