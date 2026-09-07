@@ -20,7 +20,7 @@ export const ChangePasswordModal = ({ isOpen, onClose, onSave }) => {
       setError('Mật khẩu xác nhận không khớp.');
       return;
     }
-    if (newPassword.length < 4) {
+    if (!newPassword || newPassword.length < 4) {
       setError('Mật khẩu quá ngắn.');
       return;
     }

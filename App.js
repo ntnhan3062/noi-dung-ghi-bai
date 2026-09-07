@@ -199,9 +199,9 @@ const Layout = ({ children, isAppMode, uiConfig, currentBg, isOnline }) => {
                 ${isClassDropdownOpen && html`
                   <div className=${`absolute right-0 mt-2 w-56 rounded-2xl shadow-2xl border z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200 ${isLiquid ? 'bg-white/80 backdrop-blur-xl border-white/60' : 'bg-white border-slate-200'}`}>
                     <div className="max-h-64 overflow-y-auto py-2">
-                      ${classes.length === 0 ? html`
+                      ${(!classes || classes.length === 0) ? html`
                         <div className="px-4 py-3 text-xs text-slate-400 text-center italic">Chưa có lớp nào</div>
-                      ` : classes.map(cls => html`
+                      ` : (classes || []).map(cls => html`
                         <button
                           key=${cls.id}
                           onClick=${() => { setSelectedClassId(cls.id); setIsClassDropdownOpen(false); }}
@@ -243,7 +243,7 @@ const Layout = ({ children, isAppMode, uiConfig, currentBg, isOnline }) => {
       </header>
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
         <!-- Persistent Breadcrumbs -->
-        ${isVisible && breadcrumbs.length > 0 && html`
+        ${isVisible && Array.isArray(breadcrumbs) && breadcrumbs.length > 0 && html`
           <div className="sticky top-[4.5rem] md:top-24 z-20 mb-8 px-2">
              <${Breadcrumbs} items=${breadcrumbs} onNavigate=${handleNavigate} isLiquid=${isLiquid} />
           </div>
@@ -418,9 +418,9 @@ const App = () => {
   `;
 
   return html`
-    <${LayoutErrorProvider}>
-      <${BrowserRouter} basename=${getBasename()}>
-        <${ErrorBoundary}>
+    <${ErrorBoundary}>
+      <${LayoutErrorProvider}>
+        <${BrowserRouter} basename=${getBasename()}>
           <${ClassProvider}>
             <${BreadcrumbProvider}>
               <${Layout} isAppMode=${isAppMode} uiConfig=${uiConfig} currentBg=${currentBg} isOnline=${isOnline}>
@@ -428,9 +428,9 @@ const App = () => {
               </${Layout}>
             </${BreadcrumbProvider}>
           </${ClassProvider}>
-        </${ErrorBoundary}>
-      </${BrowserRouter}>
-    </${LayoutErrorProvider}>
+        </${BrowserRouter}>
+      </${LayoutErrorProvider}>
+    </${ErrorBoundary}>
   `;
 };
 

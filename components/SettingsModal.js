@@ -144,7 +144,8 @@ export const SettingsModal = ({ isOpen, onClose }) => {
   const handleSave = async () => {
     setSaving(true);
     // Filter out empty strings
-    const cleanList = backgrounds.filter(url => url && url.trim().length > 0);
+    const bgList = Array.isArray(backgrounds) ? backgrounds : [];
+    const cleanList = bgList.filter(url => url && typeof url === 'string' && url.trim().length > 0);
     const success = await apiService.saveBackgrounds(cleanList, isActive);
     setSaving(false);
     if (success) {
@@ -201,7 +202,7 @@ export const SettingsModal = ({ isOpen, onClose }) => {
                 <div className="flex justify-center py-10"><${Loader2} className="animate-spin text-indigo-500" /></div>
             ` : html`
                 <div className="space-y-1 transition-opacity ${!isActive ? 'opacity-50 pointer-events-none' : ''}">
-                    ${backgrounds.map((url, index) => html`
+                    ${(backgrounds || []).map((url, index) => html`
                         <${BackgroundItem} 
                             index=${index}
                             url=${url} 
@@ -212,7 +213,7 @@ export const SettingsModal = ({ isOpen, onClose }) => {
                     `)}
                 </div>
                 
-                ${backgrounds.length === 0 && isActive && html`
+                ${(!backgrounds || backgrounds.length === 0) && isActive && html`
                     <div className="text-center py-8 border-2 border-dashed border-slate-300/50 rounded-xl bg-slate-50/50 mb-4">
                         <p className="text-slate-400 text-sm">Chưa có ảnh nền nào.</p>
                         <p className="text-slate-400 text-xs mt-1">Thêm ảnh để bắt đầu trình chiếu.</p>

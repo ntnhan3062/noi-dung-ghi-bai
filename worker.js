@@ -134,7 +134,7 @@ export default {
         ];
 
         // Tự động chuyển các môn thuộc lớp đã xóa về "Tất cả các lớp"
-        if (newIds.length === 0) {
+        if (!newIds || newIds.length === 0) {
             batch.push(env.DB.prepare(`UPDATE nodes SET classId = NULL WHERE classId IS NOT NULL`));
         } else {
             const placeholders = newIds.map(() => '?').join(',');

@@ -47,13 +47,14 @@ export const ClassManagementPage = () => {
 
   const handleAddClass = async () => {
     if (!newClassName.trim()) return;
+    const safeList = Array.isArray(localClasses) ? localClasses : [];
     const newClass = {
       id: Math.random().toString(36).substr(2, 9),
       title: newClassName.startsWith('Lớp ') ? newClassName : `Lớp ${newClassName}`,
-      orderIndex: localClasses.length,
-      isDefault: localClasses.length === 0
+      orderIndex: safeList.length,
+      isDefault: safeList.length === 0
     };
-    const updated = [...localClasses, newClass];
+    const updated = [...safeList, newClass];
     setLocalClasses(updated);
     setNewClassName('');
     setIsAdding(false);
@@ -63,7 +64,7 @@ export const ClassManagementPage = () => {
     if (confirm('Bạn có chắc chắn muốn xóa lớp này?')) {
       const updated = localClasses.filter(c => c.id !== id);
       // If we deleted the default class, pick a new one
-      if (localClasses.find(c => c.id === id)?.isDefault && updated.length > 0) {
+      if (localClasses.find(c => c.id === id)?.isDefault && updated && updated.length > 0) {
         updated[0].isDefault = true;
       }
       setLocalClasses(updated);
@@ -202,7 +203,7 @@ export const ClassManagementPage = () => {
               </div>
             `)}
             
-            ${localClasses.length === 0 && !isAdding && html`
+            ${(!localClasses || localClasses.length === 0) && !isAdding && html`
               <div className="py-12 text-center">
                 <p className="text-slate-400 italic">Chưa có lớp học nào. Hãy thêm lớp mới!</p>
               </div>

@@ -141,9 +141,10 @@ export const SettingsPage = () => {
 
   const handleSave = async () => {
     setSaving(true);
+    const bgImages = Array.isArray(config?.background?.images) ? config.background.images : [];
     const cleanBackgrounds = {
-        ...config.background,
-        images: config.background.images.filter(url => url && url.trim().length > 0)
+        ...(config?.background || {}),
+        images: bgImages.filter(url => url && typeof url === 'string' && url.trim().length > 0)
     };
     const success = await apiService.saveFullConfig({ ...config, background: cleanBackgrounds });
     setSaving(false);

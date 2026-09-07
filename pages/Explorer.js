@@ -327,7 +327,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
         // Check if any mutation is NOT from KaTeX
         const isExternalMutation = mutations.some(mutation => {
           // If nodes were added, check if they are KaTeX
-          if (mutation.addedNodes.length > 0) {
+          if (mutation.addedNodes && mutation.addedNodes.length > 0) {
             const allAddedAreKatex = Array.from(mutation.addedNodes).every(node => 
               (node.classList && (node.classList.contains('katex') || node.classList.contains('katex-html'))) ||
               (node.querySelector && node.querySelector('.katex'))
@@ -708,7 +708,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     let needsCap = false;
     if (rng.startOffset === 0) {
         const node = editor.selection.getNode();
-        if (node.nodeName === 'LI' || node.innerText.trim().length === 0) needsCap = true;
+        if (node.nodeName === 'LI' || (node.innerText && node.innerText.trim().length === 0)) needsCap = true;
     } else {
         const textContent = rng.startContainer.textContent || "";
         const prevContext = textContent.slice(Math.max(0, rng.startOffset - 3), rng.startOffset).trim();
@@ -716,7 +716,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
         if (['.', '!', '?', '\n'].includes(prevChar) || prevContext.endsWith('.') || prevContext.endsWith('!') || prevContext.endsWith('?')) needsCap = true;
         if (prevChar === '-' || prevContext.endsWith('-')) needsCap = true;
     }
-    if (needsCap && processed.length > 0 && !processed.startsWith('<br')) processed = processed.charAt(0).toUpperCase() + processed.slice(1);
+    if (needsCap && processed && processed.length > 0 && !processed.startsWith('<br')) processed = processed.charAt(0).toUpperCase() + processed.slice(1);
     processed = processed.replace(/([.?!])\s*([a-zà-ỹ])/g, (match, p1, p2) => p1 + ' ' + p2.toUpperCase());
     return processed;
   };
@@ -758,7 +758,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
         if (!editor) return;
         let finalChunk = '';
         let interimChunk = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
+        for (let i = event.resultIndex; i < (event.results ? event.results.length : 0); ++i) {
           if (event.results[i].isFinal) finalChunk += event.results[i][0].transcript; else interimChunk += event.results[i][0].transcript;
         }
         if (finalChunk) {
@@ -793,7 +793,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
   const handleCreate = (type) => {
     setModalMode('CREATE');
     setTargetType(type);
-    setEditingNode({ parentId: nodeId || null, orderIndex: children.length > 0 ? Math.max(...children.map(c => c.orderIndex || 0)) + 1 : 0 });
+    setEditingNode({ parentId: nodeId || null, orderIndex: (children && children.length > 0) ? Math.max(...children.map(c => c.orderIndex || 0)) + 1 : 0 });
     setIsModalOpen(true);
   };
   const handleEditTitle = (node) => { setModalMode('UPDATE'); setTargetType(node.type); setEditingNode(node); setIsModalOpen(true); };
@@ -900,7 +900,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     if (!movingNode) return;
     if (movingNode.id === nodeId) { alert("Không thể di chuyển thư mục vào chính nó."); return; }
     setLoading(true);
-    const maxOrder = children.length > 0 ? Math.max(...children.map(c => c.orderIndex || 0)) : -1;
+    const maxOrder = (children && children.length > 0) ? Math.max(...children.map(c => c.orderIndex || 0)) : -1;
     const updates = [{ id: movingNode.id, parentId: nodeId || null, orderIndex: maxOrder + 1 }];
     await apiService.batchUpdateNodes(updates);
     setMovingNode(null); await fetchData(true); setLoading(false);
@@ -914,7 +914,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
       return html`<${StatusPage} type=${error} />`;
     }
 
-    if (loading && !allNodes.length) {
+    if (loading && (!allNodes || !allNodes.length)) {
         return html`
           <div className="w-full max-w-5xl mx-auto space-y-6 animate-pulse p-4">
             <div className="space-y-3">
@@ -1075,7 +1075,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
         </div>
       `}
 
-      ${mode === 'edit' && allowedChildTypes.length > 0 && !isSorting && html`
+      ${mode === 'edit' && allowedChildTypes && allowedChildTypes.length > 0 && !isSorting && html`
         <div key="edit-controls" className="mb-8 flex flex-wrap gap-3">
           ${allowedChildTypes.map(type => html`
             <button
@@ -1087,7 +1087,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
               Thêm ${NODE_LABELS[type]}
             </button>
           `)}
-          ${children.length > 1 && html`
+          ${children && children.length > 1 && html`
             <button key="btn-sort" onClick=${() => setIsSorting(true)} className="flex items-center gap-2 px-5 py-3 bg-white text-slate-600 border border-slate-200 rounded-2xl hover:bg-slate-50 hover:text-indigo-600 transition-all text-sm font-bold ml-auto shadow-sm">
                 <${ArrowUpDown} size=${18} /> Sắp xếp
             </button>
@@ -1113,7 +1113,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
         </div>
       `}
 
-      ${children.length === 0 ? html`
+      ${(!children || children.length === 0) ? html`
         <div key="empty-state" className=${`text-center py-24 rounded-[2.5rem] border-2 border-dashed flex flex-col items-center justify-center ${isLiquid ? 'bg-white/20 border-white/40 shadow-glass' : 'bg-white border-slate-200'}`}>
           <div key="empty-icon-container" className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6 shadow-inner">
             <${ListIcon} key="empty-icon" className="text-slate-300" size=${40} />

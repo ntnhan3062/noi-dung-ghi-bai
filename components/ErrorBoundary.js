@@ -5,11 +5,11 @@ import { StatusPage } from './StatusPage.js';
 export class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, error: null };
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true };
+    return { hasError: true, error };
   }
 
   componentDidCatch(error, errorInfo) {
@@ -18,9 +18,15 @@ export class ErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
-      return html`<${StatusPage} type="source-error" />`;
+      return html`
+        <${StatusPage} 
+          type="source-error" 
+          subMessage=${this.state.error?.message || "Đã xảy ra sự cố kỹ thuật trong ứng dụng. Vui lòng tải lại trang."}
+        />
+      `;
     }
 
     return this.props.children;
   }
 }
+
