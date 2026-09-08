@@ -111,10 +111,14 @@ export const apiService = {
   getFullConfig: async () => {
     try {
         const response = await fetch(getUrl('/api/config/full'));
-        if (!response.ok) return { classes: [], background: { images: [], active: false }, ui: { style: 'liquid', zoom: { view: true, edit: true, app: false } } };
-        return await response.json();
+        if (!response.ok) return { classes: [], background: { images: [], active: false }, ui: { style: 'liquid', backButton: true, zoom: { view: true, edit: true, app: false } } };
+        const data = await response.json();
+        if (data && data.ui && data.ui.backButton === undefined) {
+          data.ui.backButton = true;
+        }
+        return data;
     } catch (e) {
-        return { classes: [], background: { images: [], active: false }, ui: { style: 'liquid', zoom: { view: true, edit: true, app: false } } };
+        return { classes: [], background: { images: [], active: false }, ui: { style: 'liquid', backButton: true, zoom: { view: true, edit: true, app: false } } };
     }
   },
 

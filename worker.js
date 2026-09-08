@@ -98,10 +98,10 @@ export default {
       // --- API: FULL CONFIG (GET/POST) ---
       if (url.pathname === "/api/config/full" && request.method === "GET") {
         try {
-            const keys = ['background_images', 'background_active', 'ui_style', 'zoom_settings', 'classes'];
+            const keys = ['background_images', 'background_active', 'ui_style', 'zoom_settings', 'classes', 'back_button'];
             const results = await Promise.all(keys.map(k => env.DB.prepare("SELECT value FROM config WHERE key = ?").bind(k).first()));
             
-            const [bgImages, bgActive, uiStyle, zoomSettings, classes] = results;
+            const [bgImages, bgActive, uiStyle, zoomSettings, classes, backButton] = results;
 
             const config = {
                 classes: classes && classes.value ? JSON.parse(classes.value) : [],
@@ -111,12 +111,13 @@ export default {
                 },
                 ui: {
                     style: uiStyle ? uiStyle.value : 'liquid', 
+                    backButton: backButton ? backButton.value !== 'false' : true,
                     zoom: zoomSettings && zoomSettings.value ? JSON.parse(zoomSettings.value) : { view: true, edit: true, app: false }
                 }
             };
             return new Response(JSON.stringify(config), { headers: corsHeaders });
         } catch (e) {
-            return new Response(JSON.stringify({ classes: [], background: { images: [], active: false }, ui: { style: 'liquid', zoom: { view: true, edit: true, app: false } } }), { headers: corsHeaders });
+            return new Response(JSON.stringify({ classes: [], background: { images: [], active: false }, ui: { style: 'liquid', backButton: true, zoom: { view: true, edit: true, app: false } } }), { headers: corsHeaders });
         }
       }
 
@@ -129,6 +130,7 @@ export default {
             env.DB.prepare(`INSERT OR REPLACE INTO config (key, value) VALUES ('background_images', ?)`).bind(JSON.stringify(background.images)),
             env.DB.prepare(`INSERT OR REPLACE INTO config (key, value) VALUES ('background_active', ?)`).bind(String(background.active)),
             env.DB.prepare(`INSERT OR REPLACE INTO config (key, value) VALUES ('ui_style', ?)`).bind(ui.style),
+            env.DB.prepare(`INSERT OR REPLACE INTO config (key, value) VALUES ('back_button', ?)`).bind(String(ui.backButton !== false)),
             env.DB.prepare(`INSERT OR REPLACE INTO config (key, value) VALUES ('zoom_settings', ?)`).bind(JSON.stringify(ui.zoom)),
             env.DB.prepare(`INSERT OR REPLACE INTO config (key, value) VALUES ('classes', ?)`).bind(JSON.stringify(newClasses))
         ];

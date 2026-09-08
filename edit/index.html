@@ -40,6 +40,23 @@
         backdrop-filter: blur(16px) !important;
         box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1) !important;
       }
+
+      @keyframes slideInRight {
+        0% { transform: translate3d(100%, 0, 0); opacity: 0; }
+        100% { transform: translate3d(0, 0, 0); opacity: 1; }
+      }
+      @keyframes slideInLeft {
+        0% { transform: translate3d(-100%, 0, 0); opacity: 0; }
+        100% { transform: translate3d(0, 0, 0); opacity: 1; }
+      }
+      .animate-slide-in-right {
+        animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        will-change: transform, opacity;
+      }
+      .animate-slide-in-left {
+        animation: slideInLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        will-change: transform, opacity;
+      }
     </style>
 
     <script>

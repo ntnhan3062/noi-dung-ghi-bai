@@ -135,12 +135,23 @@ export const SettingsPage = () => {
   const loadSettings = async () => {
     setLoading(true);
     const data = await apiService.getFullConfig();
+    let localBackButton = true;
+    try {
+      const saved = localStorage.getItem('ui_back_button');
+      if (saved !== null) localBackButton = saved === 'true';
+    } catch {}
+    if (data && data.ui && data.ui.backButton === undefined) {
+      data.ui.backButton = localBackButton;
+    }
     setConfig(data);
     setLoading(false);
   };
 
   const handleSave = async () => {
     setSaving(true);
+    try {
+      localStorage.setItem('ui_back_button', String(config?.ui?.backButton !== false));
+    } catch {}
     const bgImages = Array.isArray(config?.background?.images) ? config.background.images : [];
     const cleanBackgrounds = {
         ...(config?.background || {}),
@@ -221,6 +232,19 @@ export const SettingsPage = () => {
                 checked=${config?.ui?.style === 'liquid'}
                 onChange=${(val) => updateConfig('ui', 'style', val ? 'liquid' : 'normal')}
                 icon=${LayoutTemplate}
+                isLiquid=${isLiquid}
+            />
+            <${Toggle} 
+                label="Quay lại thư mục trước" 
+                subLabel="Hiển thị nút hình tròn có mũi tên trái bên cạnh thanh đường dẫn để quay lại mục trước đó."
+                checked=${config?.ui?.backButton !== false}
+                onChange=${(val) => {
+                  updateConfig('ui', 'backButton', val);
+                  try {
+                    localStorage.setItem('ui_back_button', String(val));
+                  } catch {}
+                }}
+                icon=${ArrowLeft}
                 isLiquid=${isLiquid}
             />
          </div>

@@ -785,6 +785,9 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
 
   const handleNavigate = (id) => {
     if (isSorting) return;
+    try {
+      sessionStorage.setItem('nav_dir', 'right');
+    } catch {}
     const prefix = mode === 'edit' ? '/edit' : '/view';
     let path = id ? `${prefix}/${id}` : prefix;
     if (location.search) path += location.search;

@@ -36,7 +36,7 @@ const getBasename = () => {
 const AnimatedRoutes = ({ isAppMode, uiConfig }) => {
     const location = useLocation();
     const navigate = useNavigate();
-    const prevDepth = useRef(0);
+    const prevHistoryIdx = useRef(typeof window !== 'undefined' ? (window.history.state?.idx ?? 0) : 0);
     const [direction, setDirection] = useState('right');
 
     useEffect(() => {
@@ -46,18 +46,35 @@ const AnimatedRoutes = ({ isAppMode, uiConfig }) => {
     }, [location.pathname, navigate]);
 
     useEffect(() => {
-        const currentDepth = location.pathname.split('/').filter(Boolean).length;
-        if (currentDepth > prevDepth.current) setDirection('right');
-        else if (currentDepth < prevDepth.current) setDirection('left');
-        prevDepth.current = currentDepth;
-    }, [location.pathname]);
+        let dir = null;
+        try {
+            const storedDir = sessionStorage.getItem('nav_dir');
+            if (storedDir === 'left' || storedDir === 'right') {
+                dir = storedDir;
+                sessionStorage.removeItem('nav_dir');
+            }
+        } catch {}
 
-    const animationClass = isAppMode 
-        ? (direction === 'right' ? 'animate-[slideInRight_0.3s_ease-out]' : 'animate-[slideInLeft_0.3s_ease-out]') 
+        if (dir) {
+            setDirection(dir);
+        } else {
+            const currentIdx = window.history.state?.idx ?? 0;
+            if (currentIdx < prevHistoryIdx.current) {
+                setDirection('left');
+            } else if (currentIdx > prevHistoryIdx.current) {
+                setDirection('right');
+            }
+            prevHistoryIdx.current = currentIdx;
+        }
+    }, [location.pathname, location.key]);
+
+    const isMobile = typeof window !== 'undefined' && (isAppMode || window.innerWidth < 768);
+    const animationClass = isMobile 
+        ? (direction === 'right' ? 'animate-slide-in-right' : 'animate-slide-in-left') 
         : '';
 
     return html`
-        <div className=${`w-full ${animationClass}`}>
+        <div key=${location.pathname} className=${`w-full ${animationClass}`}>
             <${Routes}>
                 <${Route} key="route-home" path="/" element=${html`<${Navigate} to="/view" replace />`} />
                 <${Route} key="route-index" index element=${html`<${Navigate} to="/view" replace />`} />
@@ -75,7 +92,7 @@ const AnimatedRoutes = ({ isAppMode, uiConfig }) => {
             </${Routes}>
         </div>
     `;
-}
+};
 
 const Layout = ({ children, isAppMode, uiConfig, currentBg, isOnline }) => {
   const { layoutError } = useLayoutError();
@@ -109,7 +126,12 @@ const Layout = ({ children, isAppMode, uiConfig, currentBg, isOnline }) => {
     return () => clearTimeout(timer);
   }, [secretCount]);
 
-  const handleNavigate = useCallback((id) => {
+  const handleNavigate = useCallback((id, dir = null) => {
+    if (dir) {
+      try {
+        sessionStorage.setItem('nav_dir', dir);
+      } catch {}
+    }
     const basePath = isEditMode ? '/edit' : '/view';
     if (!id) navigate(basePath);
     else navigate(`${basePath}/${id}`);
@@ -133,10 +155,13 @@ const Layout = ({ children, isAppMode, uiConfig, currentBg, isOnline }) => {
     if (isAppMode) {
       window.returnPage = () => {
         if (Array.isArray(breadcrumbs) && breadcrumbs.length > 0) {
+          try {
+            sessionStorage.setItem('nav_dir', 'left');
+          } catch {}
           // Parent node is the second-to-last item in breadcrumbs
           // If only 1 item, parent is null (home)
           const parent = breadcrumbs.length > 1 ? breadcrumbs[breadcrumbs.length - 2] : null;
-          handleNavigate(parent?.id || null);
+          handleNavigate(parent?.id || null, 'left');
         }
       };
     }
@@ -245,7 +270,12 @@ const Layout = ({ children, isAppMode, uiConfig, currentBg, isOnline }) => {
         <!-- Persistent Breadcrumbs -->
         ${isVisible && Array.isArray(breadcrumbs) && breadcrumbs.length > 0 && html`
           <div className="sticky top-[4.5rem] md:top-24 z-20 mb-8 px-2">
-             <${Breadcrumbs} items=${breadcrumbs} onNavigate=${handleNavigate} isLiquid=${isLiquid} />
+             <${Breadcrumbs} 
+               items=${breadcrumbs} 
+               onNavigate=${handleNavigate} 
+               isLiquid=${isLiquid} 
+               showBackButton=${uiConfig?.backButton !== false}
+             />
           </div>
         `}
         
@@ -276,7 +306,20 @@ const App = () => {
   const [isAuthorized, setIsAuthorized] = useState(true);
   const isAppMode = window.location.pathname.includes('/special-application');
   const [isOnline, setIsOnline] = useState(true);
-  const [uiConfig, setUiConfig] = useState({ style: 'liquid', zoom: { view: true, edit: true, app: false }, backgroundActive: false, backgrounds: [] });
+  const [uiConfig, setUiConfig] = useState(() => {
+    let localBackButton = true;
+    try {
+      const val = localStorage.getItem('ui_back_button');
+      if (val !== null) localBackButton = val === 'true';
+    } catch {}
+    return { 
+      style: 'liquid', 
+      backButton: localBackButton, 
+      zoom: { view: true, edit: true, app: false }, 
+      backgroundActive: false, 
+      backgrounds: [] 
+    };
+  });
   const [currentBg, setCurrentBg] = useState(null);
 
   const initConfig = useCallback(async () => {
@@ -302,17 +345,25 @@ const App = () => {
       }
 
       if (!fullConfig) {
-          fullConfig = { classes: [], background: { images: [], active: false }, ui: { style: 'liquid', zoom: { view: true, edit: true, app: false } } };
+          fullConfig = { classes: [], background: { images: [], active: false }, ui: { style: 'liquid', backButton: true, zoom: { view: true, edit: true, app: false } } };
       }
+
+      let savedBackButton = true;
+      try {
+        const val = localStorage.getItem('ui_back_button');
+        if (val !== null) savedBackButton = val === 'true';
+      } catch {}
 
       const bgImages = (fullConfig.background && Array.isArray(fullConfig.background.images)) ? fullConfig.background.images : [];
       const bgActive = !!(fullConfig.background && fullConfig.background.active);
       const uiStyle = (fullConfig.ui && fullConfig.ui.style) || 'liquid';
       const uiZoom = (fullConfig.ui && fullConfig.ui.zoom) || { view: true, edit: true, app: false };
+      const uiBackButton = fullConfig?.ui?.backButton !== undefined ? fullConfig.ui.backButton : savedBackButton;
 
       setUiConfig({
           style: uiStyle,
           zoom: uiZoom,
+          backButton: uiBackButton !== false,
           backgroundActive: bgActive,
           backgrounds: bgImages
       });
