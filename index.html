@@ -100,74 +100,7 @@
     <!-- KaTeX for fast math rendering -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/auto-render.min.js"></script>
-    
-    <script>
-      // Nuclear Option: Use MutationObserver to hide .katex-html and unrendered .math-tex globally
-      (function() {
-        const hideUnrenderedMath = (root) => {
-          // Hide .katex-html (always)
-          const katexHTML = root.querySelectorAll('.katex-html');
-          katexHTML.forEach(el => {
-            if (el.style.display !== 'none') {
-              el.style.setProperty('display', 'none', 'important');
-              el.setAttribute('aria-hidden', 'true');
-            }
-          });
-          
-          // Hide .math-tex that are NOT rendered yet with extreme prejudice
-          const mathTex = root.querySelectorAll('.math-tex:not(.is-rendered)');
-          mathTex.forEach(el => {
-            el.style.setProperty('display', 'none', 'important');
-            el.style.setProperty('visibility', 'hidden', 'important');
-            el.style.setProperty('opacity', '0', 'important');
-            el.style.setProperty('position', 'fixed', 'important');
-            el.style.setProperty('top', '-9999px', 'important');
-          });
-
-          const mathml = root.querySelectorAll('.katex-mathml');
-          mathml.forEach(el => {
-            if (el.style.display !== 'inline-block') {
-              el.style.setProperty('display', 'inline-block', 'important');
-              el.style.setProperty('position', 'static', 'important');
-              el.style.setProperty('clip', 'auto', 'important');
-              el.style.setProperty('width', 'auto', 'important');
-              el.style.setProperty('height', 'auto', 'important');
-              el.style.setProperty('overflow', 'visible', 'important');
-            }
-          });
-        };
-
-        // Initial check
-        hideUnrenderedMath(document);
-
-        // Observer for dynamic content
-        const observer = new MutationObserver((mutations) => {
-          mutations.forEach((mutation) => {
-            if (mutation.addedNodes.length) {
-              mutation.addedNodes.forEach((node) => {
-                if (node.nodeType === 1) { // Element node
-                  if (node.classList && node.classList.contains('katex-html')) {
-                    node.style.setProperty('display', 'none', 'important');
-                  } else if (node.classList && node.classList.contains('math-tex') && !node.classList.contains('is-rendered')) {
-                    node.style.setProperty('display', 'none', 'important');
-                  } else {
-                    hideUnrenderedMath(node);
-                  }
-                }
-              });
-            }
-          });
-        });
-
-        observer.observe(document.documentElement, {
-          childList: true,
-          subtree: true
-        });
-        
-        console.log('KaTeX Global Hider: MutationObserver active.');
-      })();
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
   </head>
   <body class="bg-slate-50 text-slate-900 font-sans antialiased select-none selection:bg-indigo-200 selection:text-indigo-900">
     <div id="root"></div>

@@ -325,12 +325,13 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     if (contentElement) {
       observer = new MutationObserver((mutations) => {
         // Check if any mutation is NOT from KaTeX
-        const isExternalMutation = mutations.some(mutation => {
+        const isExternalMutation = (mutations || []).some(mutation => {
+          if (!mutation) return false;
           // If nodes were added, check if they are KaTeX
           if (mutation.addedNodes && mutation.addedNodes.length > 0) {
             const allAddedAreKatex = Array.from(mutation.addedNodes).every(node => 
-              (node.classList && (node.classList.contains('katex') || node.classList.contains('katex-html'))) ||
-              (node.querySelector && node.querySelector('.katex'))
+              (node && node.classList && (node.classList.contains('katex') || node.classList.contains('katex-html'))) ||
+              (node && node.querySelector && node.querySelector('.katex'))
             );
             if (allAddedAreKatex) return false;
           }
@@ -914,7 +915,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
       return html`<${StatusPage} type=${error} />`;
     }
 
-    if (loading && (!allNodes || !allNodes.length)) {
+    if (loading && (!Array.isArray(allNodes) || allNodes.length === 0)) {
         return html`
           <div className="w-full max-w-5xl mx-auto space-y-6 animate-pulse p-4">
             <div className="space-y-3">

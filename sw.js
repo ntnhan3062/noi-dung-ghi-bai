@@ -1,4 +1,4 @@
-const CACHE_NAME = 'noi-dung-ghi-bai-v1';
+const CACHE_NAME = 'noi-dung-ghi-bai-v4';
 const ASSETS_TO_CACHE = [
   './',
   'index.html',
@@ -88,21 +88,38 @@ self.addEventListener('fetch', (event) => {
     return request.url === assetUrl;
   });
 
-  if (isCDN || isLocalAsset) {
+  if (isLocalAsset) {
+    // Network-First strategy for local app assets: Always get latest code from server, fallback to cache when offline
+    event.respondWith(
+      fetch(request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseToCache);
+          });
+        }
+        return networkResponse;
+      }).catch(() => {
+        return caches.match(request);
+      })
+    );
+    return;
+  }
+
+  if (isCDN) {
     event.respondWith(
       caches.open(CACHE_NAME).then((cache) => {
         return cache.match(request).then((cachedResponse) => {
           const fetchedResponse = fetch(request).then((networkResponse) => {
-            if (networkResponse.status === 200) {
+            if (networkResponse && networkResponse.status === 200) {
               cache.put(request, networkResponse.clone());
             }
             return networkResponse;
           }).catch((err) => {
-            console.warn('[Service Worker] Network fetch failed for:', url.pathname, err);
+            console.warn('[Service Worker] CDN Network fetch failed for:', url.pathname, err);
             return null;
           });
 
-          // Return cached response instantly (makes load time 0.1s!), and update cache in background
           return cachedResponse || fetchedResponse;
         });
       })

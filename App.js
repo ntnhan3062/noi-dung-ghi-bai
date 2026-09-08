@@ -132,7 +132,7 @@ const Layout = ({ children, isAppMode, uiConfig, currentBg, isOnline }) => {
   useEffect(() => {
     if (isAppMode) {
       window.returnPage = () => {
-        if (breadcrumbs.length > 0) {
+        if (Array.isArray(breadcrumbs) && breadcrumbs.length > 0) {
           // Parent node is the second-to-last item in breadcrumbs
           // If only 1 item, parent is null (home)
           const parent = breadcrumbs.length > 1 ? breadcrumbs[breadcrumbs.length - 2] : null;
@@ -322,7 +322,7 @@ const App = () => {
           console.error(e);
       }
       
-      if (bgActive && bgImages.length > 0) {
+      if (bgActive && Array.isArray(bgImages) && bgImages.length > 0) {
         setCurrentBg(bgImages[Math.floor(Math.random() * bgImages.length)]);
       }
   }, []);
@@ -394,7 +394,7 @@ const App = () => {
     if (!uiConfig?.backgroundActive || !Array.isArray(uiConfig?.backgrounds) || uiConfig.backgrounds.length <= 1) return;
     const interval = setInterval(() => {
         const otherBgs = (uiConfig.backgrounds || []).filter(bg => bg !== currentBg);
-        if (otherBgs.length > 0) setCurrentBg(otherBgs[Math.floor(Math.random() * otherBgs.length)]);
+        if (Array.isArray(otherBgs) && otherBgs.length > 0) setCurrentBg(otherBgs[Math.floor(Math.random() * otherBgs.length)]);
     }, 60000);
     return () => clearInterval(interval);
   }, [uiConfig, currentBg]);

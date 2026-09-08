@@ -9,15 +9,16 @@ if (!createElement) {
   throw new Error("React initialization failed");
 }
 
-const bindFn = typeof htm === 'function' ? htm : (htm && htm.default);
+const htmFn = (htm && typeof htm.bind === 'function') ? htm : (htm && htm.default);
 
-if (typeof bindFn !== 'function') {
+if (!htmFn || typeof htmFn.bind !== 'function') {
   console.error("htm module structure:", htm);
   throw new Error("htm initialization failed");
 }
 
-// bindFn(createElement) returns the htm tagged template function bound to React.createElement
-const html = bindFn(createElement);
+// Bind htm to React.createElement to produce tagged template function
+const html = htmFn.bind(createElement);
 
 export { html };
+
 

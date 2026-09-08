@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { html } from './utils/html.js';
 import App from './App.js';
+import { ErrorBoundary } from './components/ErrorBoundary.js';
 
 // Register Service Worker for ultimate offline capability
 if ('serviceWorker' in navigator) {
@@ -31,7 +32,9 @@ try {
   const root = ReactDOM.createRoot(rootElement);
   root.render(html`
     <${React.StrictMode}>
-      <${App} />
+      <${ErrorBoundary}>
+        <${App} />
+      </${ErrorBoundary}>
     </${React.StrictMode}>
   `);
 } catch (err) {

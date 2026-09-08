@@ -173,23 +173,28 @@ export const SettingsPage = () => {
   };
 
   const handleAddBg = () => {
-    if (!config.background.active) return;
-    updateConfig('background', 'images', [...config.background.images, '']);
+    if (!config?.background?.active) return;
+    const bgList = Array.isArray(config?.background?.images) ? config.background.images : [];
+    updateConfig('background', 'images', [...bgList, '']);
   };
 
   const handleBgChange = (index, val) => {
-    const newImgs = [...config.background.images];
+    const bgList = Array.isArray(config?.background?.images) ? config.background.images : [];
+    const newImgs = [...bgList];
     newImgs[index] = val;
     updateConfig('background', 'images', newImgs);
   };
 
   const handleBgDelete = (index) => {
-    updateConfig('background', 'images', config.background.images.filter((_, i) => i !== index));
+    const bgList = Array.isArray(config?.background?.images) ? config.background.images : [];
+    updateConfig('background', 'images', bgList.filter((_, i) => i !== index));
   };
 
   const isLiquid = config?.ui?.style === 'liquid';
 
-  if (loading) return html`<div className="flex justify-center items-center h-screen"><${Loader2} className="animate-spin text-indigo-600" size=${48} /></div>`;
+  if (loading || !config) return html`<div className="flex justify-center items-center h-screen"><${Loader2} className="animate-spin text-indigo-600" size=${48} /></div>`;
+
+  const bgImages = Array.isArray(config?.background?.images) ? config.background.images : [];
 
   return html`
     <div className="max-w-3xl mx-auto pb-20 animate-in fade-in slide-in-from-bottom-8">
@@ -213,7 +218,7 @@ export const SettingsPage = () => {
             <${Toggle} 
                 label="Chế độ Liquid Glass" 
                 subLabel="Sử dụng giao diện kính trong suốt và nền bong bóng chuyển động. Tắt để dùng giao diện phẳng (Nhanh hơn)."
-                checked=${config.ui.style === 'liquid'}
+                checked=${config?.ui?.style === 'liquid'}
                 onChange=${(val) => updateConfig('ui', 'style', val ? 'liquid' : 'normal')}
                 icon=${LayoutTemplate}
                 isLiquid=${isLiquid}
@@ -226,17 +231,17 @@ export const SettingsPage = () => {
          <${Toggle} 
             label="Bật ảnh nền tự chọn" 
             subLabel="Sử dụng ảnh nền thay vì hiệu ứng Liquid mặc định. (Tự động đổi mỗi 60s nếu có nhiều ảnh)"
-            checked=${config.background.active}
+            checked=${!!config?.background?.active}
             onChange=${(val) => updateConfig('background', 'active', val)}
             icon=${ImageIcon}
             isLiquid=${isLiquid}
          />
          
-         <div className=${`mt-6 transition-all ${!config.background.active ? 'opacity-50 pointer-events-none' : ''}`}>
+         <div className=${`mt-6 transition-all ${!config?.background?.active ? 'opacity-50 pointer-events-none' : ''}`}>
              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Danh sách ảnh</h3>
              <div className="space-y-1">
-                ${config.background.images.map((url, idx) => html`
-                    <${BackgroundItem} index=${idx} url=${url} onChange=${(v) => handleBgChange(idx, v)} onDelete=${() => handleBgDelete(idx)} disabled=${!config.background.active} />
+                ${bgImages.map((url, idx) => html`
+                    <${BackgroundItem} index=${idx} url=${url} onChange=${(v) => handleBgChange(idx, v)} onDelete=${() => handleBgDelete(idx)} disabled=${!config?.background?.active} />
                 `)}
              </div>
              <button onClick=${handleAddBg} disabled=${!config.background.active} className=${`w-full py-3 border-2 border-dashed rounded-xl transition-all font-bold flex items-center justify-center gap-2 mt-3 ${isLiquid ? 'border-white/60 bg-white/30 text-indigo-700 hover:bg-white/50' : 'border-indigo-200 text-indigo-600 hover:bg-indigo-50'}`}><${Plus} size=${18} /> Thêm ảnh mới</button>

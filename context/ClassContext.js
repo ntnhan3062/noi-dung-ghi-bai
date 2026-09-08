@@ -18,7 +18,7 @@ export const ClassProvider = ({ children }) => {
       setClasses(classList);
       
       // Set default class
-      if (classList.length > 0) {
+      if (Array.isArray(classList) && classList.length > 0) {
         const defaultClass = classList.find(c => c.isDefault) || classList[0];
         setSelectedClassId(defaultClass.id);
       }
