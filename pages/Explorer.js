@@ -88,6 +88,24 @@ export const normalizeMathSpans = (html) => {
   return content;
 };
 
+export const hasLatexMath = (content) => {
+  if (!content || typeof content !== 'string') return false;
+  if (content.includes('math-tex') || content.includes('katex')) return true;
+  if (/\$\$[\s\S]+?\$\$/.test(content)) return true;
+  if (/\\\[[\s\S]+?\\\]/.test(content)) return true;
+  if (/\\\([\s\S]+?\\\)/.test(content)) return true;
+  if (/\$([^\$\s][^\$]*?)\$/.test(content)) {
+    const matches = content.match(/\$([^\$\s][^\$]*?)\$/g);
+    if (matches && matches.some(m => !/^\$\s*\d+([.,]\d+)?\s*\$$/.test(m))) {
+      return true;
+    }
+  }
+  if (/\\[a-zA-Z]+/.test(content) && /\\(frac|sqrt|sum|int|prod|alpha|beta|gamma|delta|epsilon|theta|lambda|pi|sigma|omega|partial|infty|leq|geq|neq|approx|times|div|pm|mp|cdot|circ|bullet|rightarrow|leftarrow|Rightarrow|Leftarrow|to|vec|hat|bar|text|mathbf|mathrm|sin|cos|tan|cot|ln|log)/.test(content)) {
+    return true;
+  }
+  return false;
+};
+
 export const Explorer = ({ mode, isAppMode, uiConfig }) => {
   const { nodeId } = useParams();
   const navigate = useNavigate();
@@ -164,6 +182,8 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
   const isFetchingRef = useRef(false);
   const lessonContentRef = useRef(null);
   const titleRef = useRef(null);
+  const lastRenderedContentRef = useRef(null);
+  const lastRenderedNodeIdRef = useRef(null);
 
   const selectNoneStyle = {
     userSelect: 'none',
@@ -174,6 +194,27 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
   };
 
   const currentNode = useMemo(() => allNodes.find(n => n.id === nodeId), [allNodes, nodeId]);
+
+  // Kiểm tra bài học hiện tại có công thức toán học (LaTeX) hay không
+  const hasMath = useMemo(() => {
+    if (currentNode?.type !== NodeType.LESSON) return false;
+    return hasLatexMath(currentNode?.content);
+  }, [currentNode?.id, currentNode?.content, currentNode?.type]);
+
+  // Đảm bảo trạng thái render công thức được đặt lại trước khi trình duyệt vẽ frame nếu bài có LaTeX
+  useLayoutEffect(() => {
+    if (currentNode?.type === NodeType.LESSON) {
+      if (hasMath && !isEditingContent) {
+        if (lastRenderedNodeIdRef.current !== currentNode?.id || lastRenderedContentRef.current !== currentNode?.content) {
+          setIsMathRendered(false);
+        }
+      } else {
+        setIsMathRendered(true);
+      }
+    } else {
+      setIsMathRendered(true);
+    }
+  }, [currentNode?.id, currentNode?.content, hasMath, isEditingContent, currentNode?.type]);
 
   useLayoutEffect(() => {
     const checkTitle = () => {
@@ -219,8 +260,8 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     return path;
   }, [currentNode, allNodes]);
 
-  // Check Zoom availability: Must be LESSON type AND enabled in config
-  const canShowZoom = currentNode?.type === NodeType.LESSON && (uiConfig?.zoom ? (
+  // Check Zoom availability: Must be LESSON type, math must be finished rendering, AND enabled in config
+  const canShowZoom = currentNode?.type === NodeType.LESSON && (!hasMath || isMathRendered) && (uiConfig?.zoom ? (
       (uiConfig.zoom.enabled !== false) && (
         (isAppMode && uiConfig.zoom.app) ||
         (mode === 'edit' && uiConfig.zoom.edit) ||
@@ -321,11 +362,40 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     if (isEditingContent) return;
     if (currentNode?.type !== NodeType.LESSON) return;
     
-    // Rendering lock to prevent concurrent calls
+    // Nếu bài học không có công thức toán học thì hoàn tất ngay lập tức
+    if (!hasMath) {
+      setIsMathRendered(true);
+      lastRenderedNodeIdRef.current = currentNode?.id;
+      lastRenderedContentRef.current = currentNode?.content;
+      return;
+    }
+
+    let isMounted = true;
     let isRendering = false;
 
+    // Safety timeout: Sau tối đa 3.5s, nếu vì mạng hay KaTeX script bị chậm thì vẫn mở nội dung bài học
+    const safetyTimeout = setTimeout(() => {
+      if (isMounted) {
+        setIsMathRendered(true);
+      }
+    }, 3500);
+
+    const markRenderComplete = () => {
+      if (!isMounted) return;
+      lastRenderedNodeIdRef.current = currentNode?.id;
+      lastRenderedContentRef.current = currentNode?.content;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (isMounted) {
+            setIsMathRendered(true);
+            clearTimeout(safetyTimeout);
+          }
+        });
+      });
+    };
+
     const renderMath = () => {
-      if (isRendering) return;
+      if (isRendering || !isMounted) return;
       
       const contentElement = lessonContentRef.current || document.querySelector('.lesson-content');
       if (!contentElement) {
@@ -374,11 +444,11 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
             el.style.setProperty('visibility', 'visible', 'important');
           });
 
-          setIsMathRendered(true);
+          markRenderComplete();
           console.log('KaTeX: Render successful and HTML hidden via JS.');
         } catch (err) {
           console.error('KaTeX: Render error:', err);
-          setIsMathRendered(true); // Show content even on error
+          markRenderComplete(); // Show content even on error
         } finally {
           // Release lock after a short delay to ensure DOM is stable
           setTimeout(() => { isRendering = false; }, 100);
@@ -387,8 +457,8 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
         console.warn('KaTeX: SDK components missing. hasKatex:', hasKatex, 'hasRender:', hasRender);
         // Retry after a short delay if components are missing
         setTimeout(() => {
-          renderMath();
-        }, 500);
+          if (isMounted) renderMath();
+        }, 150);
       }
     };
 
@@ -404,7 +474,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     const debouncedRender = () => {
       if (renderTimeout) clearTimeout(renderTimeout);
       renderTimeout = setTimeout(() => {
-        renderMath();
+        if (isMounted) renderMath();
       }, 300);
     };
 
@@ -485,10 +555,12 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     }, 500);
 
     return () => {
+      isMounted = false;
+      clearTimeout(safetyTimeout);
       if (observer) observer.disconnect();
       clearInterval(retryInterval);
     };
-  }, [currentNode?.content, isEditingContent, viewFontSize, nodeId]);
+  }, [currentNode?.id, currentNode?.content, isEditingContent, viewFontSize, nodeId, hasMath]);
 
   // Đồng bộ kích thước font chữ cho nội dung bài học (.lesson-content)
   useEffect(() => {
@@ -1140,13 +1212,49 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
                   </div>
                 ` : html`
                   <div className=${`relative flex flex-col min-h-[500px] ${isLiquid ? 'bg-white/30' : 'bg-white'}`}>
+                      ${hasMath && !isMathRendered && html`
+                        <div key="math-loading-state" className="p-6 md:p-14 space-y-6 w-full animate-in fade-in duration-200">
+                          <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-indigo-50/90 border border-indigo-100/80 text-indigo-700 w-fit shadow-xs">
+                            <${Loader2} size=${18} className="animate-spin text-indigo-600 flex-shrink-0" />
+                            <span className="text-xs md:text-sm font-bold tracking-wide">Đang nạp và kết xuất công thức toán học...</span>
+                          </div>
+
+                          <div className="space-y-4 animate-pulse pt-2">
+                            <div className="h-5 bg-slate-200/80 rounded-full w-3/4"></div>
+                            <div className="space-y-2.5">
+                              <div className="h-4 bg-slate-200/70 rounded-full w-full"></div>
+                              <div className="h-4 bg-slate-200/70 rounded-full w-5/6"></div>
+                              <div className="h-4 bg-slate-200/70 rounded-full w-11/12"></div>
+                            </div>
+                            <div className="py-4 flex justify-center">
+                              <div className="h-14 bg-indigo-100/60 border border-indigo-200/50 rounded-2xl w-3/5 max-w-md shadow-xs flex items-center justify-center">
+                                <div className="h-4 bg-indigo-200/70 rounded-full w-1/2"></div>
+                              </div>
+                            </div>
+                            <div className="space-y-2.5">
+                              <div className="h-4 bg-slate-200/70 rounded-full w-full"></div>
+                              <div className="h-4 bg-slate-200/70 rounded-full w-4/5"></div>
+                              <div className="h-4 bg-slate-200/70 rounded-full w-2/3"></div>
+                            </div>
+                            <div className="py-3 flex justify-center">
+                              <div className="h-10 bg-indigo-100/50 border border-indigo-200/40 rounded-xl w-1/2 max-w-xs flex items-center justify-center">
+                                <div className="h-3 bg-indigo-200/60 rounded-full w-1/3"></div>
+                              </div>
+                            </div>
+                            <div className="space-y-2.5">
+                              <div className="h-4 bg-slate-200/70 rounded-full w-11/12"></div>
+                              <div className="h-4 bg-slate-200/70 rounded-full w-3/4"></div>
+                            </div>
+                          </div>
+                        </div>
+                      `}
                       <div 
                         ref=${lessonContentRef}
                         style=${{
                           '--lesson-font-size': `${viewFontSize}pt`,
                           fontSize: `${viewFontSize}pt`
                         }}
-                        className="lesson-content p-6 md:p-14 prose prose-slate max-w-none leading-loose prose-a:text-indigo-600 prose-img:rounded-2xl prose-img:shadow-xl select-text"
+                        className=${`lesson-content p-6 md:p-14 prose prose-slate max-w-none leading-loose prose-a:text-indigo-600 prose-img:rounded-2xl prose-img:shadow-xl select-text transition-opacity duration-300 ${hasMath && !isMathRendered ? 'invisible opacity-0 pointer-events-none absolute inset-x-0 top-0 -z-10 max-h-0 overflow-hidden' : 'visible opacity-100 relative'}`}
                         dangerouslySetInnerHTML=${{ __html: displayLessonContent || '<div class="flex flex-col items-center justify-center py-32 opacity-40"><div class="w-16 h-16 bg-white/50 rounded-full mb-4 shadow-sm"></div><p class="font-serif italic text-xl text-slate-600">Chưa có nội dung bài học.</p></div>' }}
                       ></div>
                   </div>
