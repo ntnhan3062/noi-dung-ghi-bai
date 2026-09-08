@@ -7,10 +7,30 @@ import { ErrorBoundary } from './components/ErrorBoundary.js';
 // Register Service Worker for ultimate offline capability
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    // Sử dụng đường dẫn tương đối để đăng ký Service Worker giúp chạy được trên các subpath thư mục như GitHub Pages
-    navigator.serviceWorker.register('sw.js')
-      .then((reg) => console.log('[Service Worker] Registration successful with scope: ', reg.scope))
-      .catch((err) => console.error('[Service Worker] Registration failed: ', err));
+    try {
+      const { pathname, hostname, origin } = window.location;
+      let basePath = '/';
+
+      if (hostname.includes('github.io')) {
+        // Trên GitHub Pages (ví dụ: username.github.io/noi-dung-ghi-bai/view/), segment đầu tiên là tên repository
+        const segments = pathname.split('/').filter(Boolean);
+        if (segments.length > 0) {
+          basePath = `/${segments[0]}/`;
+        }
+      } else if (pathname.includes('/special-application')) {
+        const idx = pathname.indexOf('/special-application');
+        basePath = pathname.substring(0, idx + '/special-application'.length) + '/';
+      }
+
+      const swUrl = `${origin}${basePath}sw.js`;
+      const swScope = `${origin}${basePath}`;
+
+      navigator.serviceWorker.register(swUrl, { scope: swScope })
+        .then((reg) => console.log('[Service Worker] Registration successful with scope: ', reg.scope))
+        .catch((err) => console.error('[Service Worker] Registration failed: ', err));
+    } catch (e) {
+      console.error('[Service Worker] Setup error: ', e);
+    }
   });
 }
 
