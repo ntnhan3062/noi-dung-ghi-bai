@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { html } from '../utils/html.js';
-import { ArrowLeft, Save, Plus, Trash2, Edit2, Image as ImageIcon, Check, Loader2, LayoutTemplate, ZoomIn, Smartphone, Monitor, Edit3, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Trash2, Edit2, Image as ImageIcon, Loader2, LayoutTemplate, ZoomIn, Smartphone, Monitor, Edit3, ChevronDown } from 'lucide-react';
 import { apiService } from '../services/apiService.js';
 import { useNavigate } from 'react-router-dom';
 import { useBreadcrumbs } from '../context/BreadcrumbContext.js';
@@ -72,14 +71,12 @@ const BackgroundItem = ({ url, index, onChange, onDelete, disabled }) => {
   `;
 };
 
-const Section = ({ title, icon: Icon, children, isLiquid }) => {
-  const [isOpen, setIsOpen] = useState(true);
-
+const Section = ({ title, icon: Icon, children, isLiquid, isOpen, onToggle }) => {
   return html`
     <div className=${`rounded-[2rem] p-6 md:p-8 mb-6 relative overflow-hidden ring-1 transition-all duration-500 ${isLiquid ? 'bg-white/60 backdrop-blur-xl shadow-glass ring-white/60' : 'bg-white shadow-sm ring-slate-200'}`}>
         <div 
-            className="flex items-center justify-between cursor-pointer group"
-            onClick=${() => setIsOpen(!isOpen)}
+            className="flex items-center justify-between cursor-pointer group select-none"
+            onClick=${onToggle}
         >
             <div className="flex items-center gap-3">
                 <div className=${`p-2.5 rounded-xl text-indigo-600 transition-all ${isLiquid ? 'bg-white/50 shadow-glass border border-white/60' : 'bg-indigo-50 shadow-sm border border-indigo-100'}`}><${Icon} size=${24} strokeWidth=${2} /></div>
@@ -90,31 +87,151 @@ const Section = ({ title, icon: Icon, children, isLiquid }) => {
             </div>
         </div>
         
-        ${isOpen && html`
-            <div className="mt-6 animate-in slide-in-from-top-4 fade-in duration-300">
-                ${children}
+        <div className=${`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
+            <div className="overflow-hidden min-h-0">
+                <div className="pt-6">
+                    ${children}
+                </div>
             </div>
-        `}
+        </div>
     </div>
   `;
 };
 
-const Toggle = ({ label, subLabel, checked, onChange, icon: Icon, isLiquid }) => html`
+// Đơn giản, không có dòng chú thích theo yêu cầu người dùng
+const Toggle = ({ label, checked, onChange, icon: Icon, isLiquid }) => html`
   <div className=${`flex items-center justify-between p-4 rounded-2xl border transition-all cursor-pointer ${checked ? (isLiquid ? 'bg-white/40 border-indigo-300/50' : 'bg-indigo-50/80 border-indigo-200') : (isLiquid ? 'bg-white/20 border-white/40 hover:bg-white/40' : 'bg-slate-50/80 border-slate-200 hover:border-slate-300')}`} onClick=${() => onChange(!checked)}>
     <div className="flex items-center gap-4">
         <div className=${`p-2.5 rounded-xl transition-colors ${checked ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30' : (isLiquid ? 'bg-white/40 text-slate-500' : 'bg-slate-200 text-slate-500')}`}>
             <${Icon} size=${20} />
         </div>
         <div>
-            <h3 className="font-bold text-slate-700 text-sm">${label}</h3>
-            ${subLabel && html`<p className="text-xs text-slate-500 font-medium mt-0.5">${subLabel}</p>`}
+            <h3 className="font-bold text-slate-700 text-sm md:text-base">${label}</h3>
         </div>
     </div>
-    <div className=${`w-12 h-7 rounded-full transition-colors relative ${checked ? 'bg-indigo-500' : (isLiquid ? 'bg-white/50 border border-white/60' : 'bg-slate-300')}`}>
-        <div className=${`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'}`}></div>
+    <div className=${`w-12 h-7 rounded-full transition-colors relative flex-shrink-0 ${checked ? 'bg-indigo-500' : (isLiquid ? 'bg-white/50 border border-white/60' : 'bg-slate-300')}`}>
+        <div className=${`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${checked ? 'translate-x-5' : 'translate-x-0'}`}></div>
     </div>
   </div>
 `;
+
+// Nút hạ xuống 1 ô dính liền: thanh nút bo 2 góc trên, khung nối thêm bo 2 góc dưới và nối liền lại có 3 hàng
+const AttachedDropdownToggle = ({ 
+  label, 
+  icon: Icon, 
+  enabled, 
+  onToggleEnabled, 
+  targets, 
+  onChangeTarget, 
+  isLiquid 
+}) => {
+  const safeTargets = targets || { view: true, edit: true, app: false };
+
+  return html`
+    <div className="w-full transition-all">
+      <!-- Thanh nút chính ở trên -->
+      <div 
+        className=${`flex items-center justify-between p-4 border transition-all cursor-pointer ${
+          enabled 
+            ? (isLiquid ? 'bg-white/50 border-indigo-300/60 rounded-t-2xl rounded-b-none' : 'bg-indigo-50/90 border-indigo-200 rounded-t-2xl rounded-b-none')
+            : (isLiquid ? 'bg-white/20 border-white/40 hover:bg-white/40 rounded-2xl' : 'bg-slate-50/80 border-slate-200 hover:border-slate-300 rounded-2xl')
+        }`} 
+        onClick=${() => onToggleEnabled(!enabled)}
+      >
+        <div className="flex items-center gap-4">
+          <div className=${`p-2.5 rounded-xl transition-colors ${
+            enabled ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30' : (isLiquid ? 'bg-white/40 text-slate-500' : 'bg-slate-200 text-slate-500')
+          }`}>
+            <${Icon} size=${20} />
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-700 text-sm md:text-base">${label}</h3>
+          </div>
+        </div>
+        <div className=${`w-12 h-7 rounded-full transition-colors relative flex-shrink-0 ${
+          enabled ? 'bg-indigo-500' : (isLiquid ? 'bg-white/50 border border-white/60' : 'bg-slate-300')
+        }`}>
+          <div className=${`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+            enabled ? 'translate-x-5' : 'translate-x-0'
+          }`}></div>
+        </div>
+      </div>
+
+      <!-- Khung nối thêm dính liền bên dưới (hạ xuống khi bật) -->
+      <div className=${`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
+        enabled ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'
+      }`}>
+        <div className="overflow-hidden min-h-0">
+          <div className=${`-mt-[1px] border-x border-b rounded-b-2xl overflow-hidden divide-y ${
+            isLiquid 
+              ? 'bg-white/30 backdrop-blur-md border-indigo-300/60 divide-white/30' 
+              : 'bg-indigo-50/40 border-indigo-200 divide-indigo-100/80'
+          }`}>
+            <!-- Hàng 1: Trang Xem -->
+            <div 
+              className="flex items-center justify-between px-5 py-3.5 hover:bg-white/50 transition-colors cursor-pointer"
+              onClick=${(e) => { e.stopPropagation(); onChangeTarget('view', !safeTargets.view); }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="text-slate-500">
+                  <${Monitor} size=${18} />
+                </div>
+                <span className="font-semibold text-slate-700 text-sm">Trang Xem</span>
+              </div>
+              <div className=${`w-10 h-6 rounded-full transition-colors relative flex-shrink-0 ${
+                safeTargets.view ? 'bg-indigo-500' : (isLiquid ? 'bg-white/60 border border-white/70' : 'bg-slate-300')
+              }`}>
+                <div className=${`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+                  safeTargets.view ? 'translate-x-4' : 'translate-x-0'
+                }`}></div>
+              </div>
+            </div>
+
+            <!-- Hàng 2: Trang Sửa -->
+            <div 
+              className="flex items-center justify-between px-5 py-3.5 hover:bg-white/50 transition-colors cursor-pointer"
+              onClick=${(e) => { e.stopPropagation(); onChangeTarget('edit', !safeTargets.edit); }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="text-slate-500">
+                  <${Edit3} size=${18} />
+                </div>
+                <span className="font-semibold text-slate-700 text-sm">Trang Sửa</span>
+              </div>
+              <div className=${`w-10 h-6 rounded-full transition-colors relative flex-shrink-0 ${
+                safeTargets.edit ? 'bg-indigo-500' : (isLiquid ? 'bg-white/60 border border-white/70' : 'bg-slate-300')
+              }`}>
+                <div className=${`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+                  safeTargets.edit ? 'translate-x-4' : 'translate-x-0'
+                }`}></div>
+              </div>
+            </div>
+
+            <!-- Hàng 3: Chế độ App -->
+            <div 
+              className="flex items-center justify-between px-5 py-3.5 hover:bg-white/50 transition-colors cursor-pointer"
+              onClick=${(e) => { e.stopPropagation(); onChangeTarget('app', !safeTargets.app); }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="text-slate-500">
+                  <${Smartphone} size=${18} />
+                </div>
+                <span className="font-semibold text-slate-700 text-sm">Chế độ App</span>
+              </div>
+              <div className=${`w-10 h-6 rounded-full transition-colors relative flex-shrink-0 ${
+                safeTargets.app ? 'bg-indigo-500' : (isLiquid ? 'bg-white/60 border border-white/70' : 'bg-slate-300')
+              }`}>
+                <div className=${`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+                  safeTargets.app ? 'translate-x-4' : 'translate-x-0'
+                }`}></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+};
 
 export const SettingsPage = () => {
   const navigate = useNavigate();
@@ -122,6 +239,12 @@ export const SettingsPage = () => {
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  // Các mục xổ xuống trong phần cài đặt thì mỗi lần chỉ mở 1 mục, khi mở mục khác thì mục còn lại sẽ đóng
+  const [openSectionId, setOpenSectionId] = useState('ui');
+
+  const toggleSection = (sectionId) => {
+    setOpenSectionId(prev => prev === sectionId ? null : sectionId);
+  };
 
   useEffect(() => {
     setBreadcrumbsVisible(false);
@@ -135,13 +258,46 @@ export const SettingsPage = () => {
   const loadSettings = async () => {
     setLoading(true);
     const data = await apiService.getFullConfig();
-    let localBackButton = true;
+    let localBackButton = { enabled: true, view: true, edit: true, app: true };
     try {
       const saved = localStorage.getItem('ui_back_button');
-      if (saved !== null) localBackButton = saved === 'true';
+      if (saved !== null) {
+        if (saved === 'true') localBackButton = { enabled: true, view: true, edit: true, app: true };
+        else if (saved === 'false') localBackButton = { enabled: false, view: false, edit: false, app: false };
+        else localBackButton = JSON.parse(saved);
+      }
     } catch {}
-    if (data && data.ui && data.ui.backButton === undefined) {
-      data.ui.backButton = localBackButton;
+
+    if (data && data.ui) {
+      if (data.ui.backButton === undefined) {
+        data.ui.backButton = localBackButton;
+      } else if (typeof data.ui.backButton === 'boolean') {
+        data.ui.backButton = {
+          enabled: data.ui.backButton,
+          view: data.ui.backButton,
+          edit: data.ui.backButton,
+          app: data.ui.backButton
+        };
+      } else if (typeof data.ui.backButton === 'object') {
+        data.ui.backButton = {
+          enabled: data.ui.backButton.enabled !== false,
+          view: data.ui.backButton.view !== false,
+          edit: data.ui.backButton.edit !== false,
+          app: data.ui.backButton.app !== false
+        };
+      }
+
+      if (!data.ui.zoom || typeof data.ui.zoom !== 'object') {
+        data.ui.zoom = { enabled: true, view: true, edit: true, app: false };
+      } else {
+        const hasAnyZoom = data.ui.zoom.view || data.ui.zoom.edit || data.ui.zoom.app;
+        data.ui.zoom = {
+          enabled: data.ui.zoom.enabled !== undefined ? data.ui.zoom.enabled : hasAnyZoom,
+          view: data.ui.zoom.view !== false,
+          edit: data.ui.zoom.edit !== false,
+          app: data.ui.zoom.app === true
+        };
+      }
     }
     setConfig(data);
     setLoading(false);
@@ -150,7 +306,7 @@ export const SettingsPage = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      localStorage.setItem('ui_back_button', String(config?.ui?.backButton !== false));
+      localStorage.setItem('ui_back_button', JSON.stringify(config?.ui?.backButton));
     } catch {}
     const bgImages = Array.isArray(config?.background?.images) ? config.background.images : [];
     const cleanBackgrounds = {
@@ -160,7 +316,6 @@ export const SettingsPage = () => {
     const success = await apiService.saveFullConfig({ ...config, background: cleanBackgrounds });
     setSaving(false);
     if (success) {
-      // Reload to apply changes immediately globally
       window.location.href = '#/edit'; 
       window.location.reload();
     } else {
@@ -176,10 +331,43 @@ export const SettingsPage = () => {
         if (section === 'ui') {
             return { ...prev, ui: { ...prev.ui, [key]: value } };
         }
-        if (section === 'zoom') {
-            return { ...prev, ui: { ...prev.ui, zoom: { ...prev.ui.zoom, [key]: value } } };
-        }
         return prev;
+    });
+  };
+
+  const updateZoom = (field, value) => {
+    setConfig(prev => {
+      const current = prev?.ui?.zoom || { enabled: true, view: true, edit: true, app: false };
+      const updated = { ...current, [field]: value };
+      if (field === 'enabled' && value === true && !updated.view && !updated.edit && !updated.app) {
+        updated.view = true;
+        updated.edit = true;
+      }
+      return {
+        ...prev,
+        ui: {
+          ...prev.ui,
+          zoom: updated
+        }
+      };
+    });
+  };
+
+  const updateBackButton = (field, value) => {
+    setConfig(prev => {
+      const current = prev?.ui?.backButton || { enabled: true, view: true, edit: true, app: true };
+      const updated = { ...current, [field]: value };
+      if (field === 'enabled' && value === true && !updated.view && !updated.edit && !updated.app) {
+        updated.view = true;
+        updated.edit = true;
+      }
+      return {
+        ...prev,
+        ui: {
+          ...prev.ui,
+          backButton: updated
+        }
+      };
     });
   };
 
@@ -206,6 +394,8 @@ export const SettingsPage = () => {
   if (loading || !config) return html`<div className="flex justify-center items-center h-screen"><${Loader2} className="animate-spin text-indigo-600" size=${48} /></div>`;
 
   const bgImages = Array.isArray(config?.background?.images) ? config.background.images : [];
+  const zoomConfig = config?.ui?.zoom || { enabled: true, view: true, edit: true, app: false };
+  const backButtonConfig = config?.ui?.backButton || { enabled: true, view: true, edit: true, app: true };
 
   return html`
     <div className="max-w-3xl mx-auto pb-20 animate-in fade-in slide-in-from-bottom-8">
@@ -223,38 +413,58 @@ export const SettingsPage = () => {
         </button>
       </header>
 
-      <!-- GIAO DIỆN -->
-      <${Section} title="Giao diện & Hiển thị" icon=${LayoutTemplate} isLiquid=${isLiquid}>
+      <!-- GIAO DIỆN & HIỂN THỊ -->
+      <${Section} 
+        title="Giao diện & Hiển thị" 
+        icon=${LayoutTemplate} 
+        isLiquid=${isLiquid}
+        isOpen=${openSectionId === 'ui'}
+        onToggle=${() => toggleSection('ui')}
+      >
          <div className="space-y-4">
+            <!-- 1. Chế độ Liquid Glass -->
             <${Toggle} 
                 label="Chế độ Liquid Glass" 
-                subLabel="Sử dụng giao diện kính trong suốt và nền bong bóng chuyển động. Tắt để dùng giao diện phẳng (Nhanh hơn)."
                 checked=${config?.ui?.style === 'liquid'}
                 onChange=${(val) => updateConfig('ui', 'style', val ? 'liquid' : 'normal')}
                 icon=${LayoutTemplate}
                 isLiquid=${isLiquid}
             />
-            <${Toggle} 
-                label="Quay lại thư mục trước" 
-                subLabel="Hiển thị nút hình tròn có mũi tên trái bên cạnh thanh đường dẫn để quay lại mục trước đó."
-                checked=${config?.ui?.backButton !== false}
-                onChange=${(val) => {
-                  updateConfig('ui', 'backButton', val);
-                  try {
-                    localStorage.setItem('ui_back_button', String(val));
-                  } catch {}
-                }}
+
+            <!-- 2. Nút Zoom (Được đưa lên sau liquid glass và trước cài đặt nút quay lại) -->
+            <${AttachedDropdownToggle} 
+                label="Nút Zoom (Tăng giảm cỡ chữ)"
+                icon=${ZoomIn}
+                enabled=${zoomConfig.enabled !== false}
+                onToggleEnabled=${(val) => updateZoom('enabled', val)}
+                targets=${zoomConfig}
+                onChangeTarget=${(targetKey, val) => updateZoom(targetKey, val)}
+                isLiquid=${isLiquid}
+            />
+
+            <!-- 3. Nút quay lại thư mục trước (Khi bật hạ xuống 1 ô dính liền có 3 hàng: Trang Xem, Trang Sửa, Chế độ App) -->
+            <${AttachedDropdownToggle} 
+                label="Quay lại thư mục trước"
                 icon=${ArrowLeft}
+                enabled=${backButtonConfig.enabled !== false}
+                onToggleEnabled=${(val) => updateBackButton('enabled', val)}
+                targets=${backButtonConfig}
+                onChangeTarget=${(targetKey, val) => updateBackButton(targetKey, val)}
                 isLiquid=${isLiquid}
             />
          </div>
       </${Section}>
 
-      <!-- ẢNH NỀN -->
-      <${Section} title="Ảnh nền tùy chỉnh" icon=${ImageIcon} isLiquid=${isLiquid}>
+      <!-- ẢNH NỀN TÙY CHỈNH -->
+      <${Section} 
+        title="Ảnh nền tùy chỉnh" 
+        icon=${ImageIcon} 
+        isLiquid=${isLiquid}
+        isOpen=${openSectionId === 'background'}
+        onToggle=${() => toggleSection('background')}
+      >
          <${Toggle} 
             label="Bật ảnh nền tự chọn" 
-            subLabel="Sử dụng ảnh nền thay vì hiệu ứng Liquid mặc định. (Tự động đổi mỗi 60s nếu có nhiều ảnh)"
             checked=${!!config?.background?.active}
             onChange=${(val) => updateConfig('background', 'active', val)}
             icon=${ImageIcon}
@@ -269,36 +479,6 @@ export const SettingsPage = () => {
                 `)}
              </div>
              <button onClick=${handleAddBg} disabled=${!config.background.active} className=${`w-full py-3 border-2 border-dashed rounded-xl transition-all font-bold flex items-center justify-center gap-2 mt-3 ${isLiquid ? 'border-white/60 bg-white/30 text-indigo-700 hover:bg-white/50' : 'border-indigo-200 text-indigo-600 hover:bg-indigo-50'}`}><${Plus} size=${18} /> Thêm ảnh mới</button>
-         </div>
-      </${Section}>
-
-      <!-- TIỆN ÍCH ZOOM -->
-      <${Section} title="Nút Zoom (Tăng giảm cỡ chữ)" icon=${ZoomIn} isLiquid=${isLiquid}>
-         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <${Toggle} 
-                label="Trang Xem (View Mode)" 
-                subLabel="Hiển thị trên máy tính/web"
-                checked=${config.ui.zoom.view}
-                onChange=${(val) => updateConfig('zoom', 'view', val)}
-                icon=${Monitor}
-                isLiquid=${isLiquid}
-            />
-            <${Toggle} 
-                label="Trang Sửa (Edit Mode)" 
-                subLabel="Hiển thị khi đang chỉnh sửa"
-                checked=${config.ui.zoom.edit}
-                onChange=${(val) => updateConfig('zoom', 'edit', val)}
-                icon=${Edit3}
-                isLiquid=${isLiquid}
-            />
-            <${Toggle} 
-                label="Chế độ App (Mobile)" 
-                subLabel="Hiển thị trên ứng dụng điện thoại"
-                checked=${config.ui.zoom.app}
-                onChange=${(val) => updateConfig('zoom', 'app', val)}
-                icon=${Smartphone}
-                isLiquid=${isLiquid}
-            />
          </div>
       </${Section}>
     </div>

@@ -125,7 +125,16 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
   });
   const [syncing, setSyncing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [viewFontSize, setViewFontSize] = useState(16);
+  const [viewFontSize, setViewFontSize] = useState(() => {
+    try {
+      const saved = localStorage.getItem('user_view_font_size');
+      if (saved) {
+        const val = parseInt(saved, 10);
+        if (!isNaN(val) && val >= 8 && val <= 74) return val;
+      }
+    } catch {}
+    return 16;
+  });
   const [isMathRendered, setIsMathRendered] = useState(false);
   const [isTitleOverflowing, setIsTitleOverflowing] = useState(false);
   const [isMultiLine, setIsMultiLine] = useState(false);
@@ -212,9 +221,11 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
 
   // Check Zoom availability: Must be LESSON type AND enabled in config
   const canShowZoom = currentNode?.type === NodeType.LESSON && (uiConfig?.zoom ? (
-      (isAppMode && uiConfig.zoom.app) ||
-      (mode === 'edit' && uiConfig.zoom.edit) ||
-      (mode === 'view' && !isAppMode && uiConfig.zoom.view)
+      (uiConfig.zoom.enabled !== false) && (
+        (isAppMode && uiConfig.zoom.app) ||
+        (mode === 'edit' && uiConfig.zoom.edit) ||
+        (mode === 'view' && !isAppMode && uiConfig.zoom.view)
+      )
   ) : true);
 
   useEffect(() => { if (!loading) updateBreadcrumbs(calculatedBreadcrumbs); }, [loading, calculatedBreadcrumbs, updateBreadcrumbs]);
@@ -479,32 +490,32 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     };
   }, [currentNode?.content, isEditingContent, viewFontSize, nodeId]);
 
+  // Đồng bộ kích thước font chữ cho nội dung bài học (.lesson-content)
   useEffect(() => {
-    if (currentNode?.type === NodeType.LESSON) {
+    if (lessonContentRef.current) {
+      lessonContentRef.current.style.setProperty('--lesson-font-size', `${viewFontSize}pt`);
+      lessonContentRef.current.style.setProperty('font-size', `${viewFontSize}pt`, 'important');
+    }
+  }, [viewFontSize, currentNode?.id, currentNode?.content, isEditingContent]);
+
+  useEffect(() => {
+    if (currentNode?.type === NodeType.LESSON && currentNode?.id) {
         if (lastInitializedLessonId.current !== currentNode.id) {
-            if (currentNode.content) {
-                try {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(currentNode.content, 'text/html');
-                    const elementWithFontSize = doc.querySelector('[style*="font-size"]');
-                    if (elementWithFontSize) {
-                        const style = elementWithFontSize.style.fontSize;
-                        if (style) {
-                            const match = style.match(/(\d+(\.\d+)?)(pt|px)/);
-                            if (match) {
-                                let size = parseFloat(match[1]);
-                                const unit = match[3];
-                                if (unit === 'px') size = size * 0.75;
-                                if (!isNaN(size) && size > 5) setViewFontSize(Math.round(size));
-                            }
-                        }
-                    } else { setViewFontSize(16); }
-                } catch (e) { setViewFontSize(16); }
-            } else { setViewFontSize(16); }
             lastInitializedLessonId.current = currentNode.id;
+            let initialSize = 16;
+            try {
+              const saved = localStorage.getItem('user_view_font_size');
+              if (saved) {
+                const parsed = parseInt(saved, 10);
+                if (!isNaN(parsed) && parsed >= 8 && parsed <= 74) initialSize = parsed;
+              }
+            } catch {}
+            setViewFontSize(initialSize);
         }
-    } else { lastInitializedLessonId.current = null; }
-  }, [currentNode]);
+    } else if (!currentNode) {
+      lastInitializedLessonId.current = null;
+    }
+  }, [currentNode?.id, currentNode?.type]);
 
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -730,6 +741,54 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
               if (contentToLoad) editor.setContent(contentToLoad);
               setEditorReady(true);
               tempContentRef.current = null;
+
+              // Áp dụng zoom cho trình soạn thảo TinyMCE
+              const doc = editor.getDoc();
+              if (doc) {
+                let zoomStyle = doc.getElementById('tinymce-zoom-style');
+                if (!zoomStyle && doc.head) {
+                  zoomStyle = doc.createElement('style');
+                  zoomStyle.id = 'tinymce-zoom-style';
+                  doc.head.appendChild(zoomStyle);
+                }
+                if (zoomStyle) {
+                  zoomStyle.innerHTML = `
+                    body {
+                      --lesson-font-size: ${viewFontSize}pt !important;
+                      font-size: ${viewFontSize}pt !important;
+                      line-height: 1.8 !important;
+                    }
+                    body p, body div:not(.math-tex):not(.katex-display), body span:not(.katex):not(.katex *):not(.math-tex), body li, body td, body th, body a, body b, body strong, body i, body em, body u, body s {
+                      font-size: ${viewFontSize}pt !important;
+                      line-height: 1.8 !important;
+                    }
+                    body h1, body h1 *:not(.katex):not(.katex *) { font-size: ${Math.round(viewFontSize * 1.6)}pt !important; }
+                    body h2, body h2 *:not(.katex):not(.katex *) { font-size: ${Math.round(viewFontSize * 1.35)}pt !important; }
+                    body h3, body h3 *:not(.katex):not(.katex *) { font-size: ${Math.round(viewFontSize * 1.2)}pt !important; }
+                    body h4, body h4 *:not(.katex):not(.katex *) { font-size: ${Math.round(viewFontSize * 1.1)}pt !important; }
+                  `;
+                }
+              }
+
+              // Chặn zoom trình duyệt trong iframe TinyMCE
+              const win = editor.getWin();
+              if (win) {
+                win.addEventListener('keydown', (e) => {
+                  if (e.ctrlKey || e.metaKey) {
+                    if (['+', '-', '=', '_', '0'].includes(e.key) || 
+                        ['Equal', 'Minus', 'NumpadAdd', 'NumpadSubtract', 'Digit0', 'Numpad0'].includes(e.code)) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }
+                  }
+                }, { capture: true, passive: false });
+                win.addEventListener('wheel', (e) => {
+                  if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }
+                }, { capture: true, passive: false });
+              }
             });
             editor.on('change keyup', () => { tempContentRef.current = editor.getContent(); });
           }
@@ -751,6 +810,41 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
     };
   }, [isEditingContent, autoFormat]);
+
+  // Cập nhật cỡ chữ trong TinyMCE khi bấm nút zoom ở chế độ Sửa
+  useEffect(() => {
+    if (isEditingContent && window.tinymce) {
+      const editor = window.tinymce.get('editor-container');
+      if (editor) {
+        const doc = editor.getDoc();
+        if (doc) {
+          let zoomStyle = doc.getElementById('tinymce-zoom-style');
+          if (!zoomStyle && doc.head) {
+            zoomStyle = doc.createElement('style');
+            zoomStyle.id = 'tinymce-zoom-style';
+            doc.head.appendChild(zoomStyle);
+          }
+          if (zoomStyle) {
+            zoomStyle.innerHTML = `
+              body {
+                --lesson-font-size: ${viewFontSize}pt !important;
+                font-size: ${viewFontSize}pt !important;
+                line-height: 1.8 !important;
+              }
+              body p, body div:not(.math-tex):not(.katex-display), body span:not(.katex):not(.katex *):not(.math-tex), body li, body td, body th, body a, body b, body strong, body i, body em, body u, body s {
+                font-size: ${viewFontSize}pt !important;
+                line-height: 1.8 !important;
+              }
+              body h1, body h1 *:not(.katex):not(.katex *) { font-size: ${Math.round(viewFontSize * 1.6)}pt !important; }
+              body h2, body h2 *:not(.katex):not(.katex *) { font-size: ${Math.round(viewFontSize * 1.35)}pt !important; }
+              body h3, body h3 *:not(.katex):not(.katex *) { font-size: ${Math.round(viewFontSize * 1.2)}pt !important; }
+              body h4, body h4 *:not(.katex):not(.katex *) { font-size: ${Math.round(viewFontSize * 1.1)}pt !important; }
+            `;
+          }
+        }
+      }
+    }
+  }, [viewFontSize, isEditingContent]);
 
   const processSmartText = (text, editor) => {
      if (!text) return '';
@@ -924,8 +1018,24 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     await apiService.batchUpdateNodes(updates);
     setMovingNode(null); await fetchData(true); setLoading(false);
   };
-  const increaseFontSize = () => setViewFontSize(prev => Math.min(prev + 4, 74));
-  const decreaseFontSize = () => setViewFontSize(prev => Math.max(prev - 4, 6));
+  const increaseFontSize = () => {
+    setViewFontSize(prev => {
+      const next = Math.min(prev + 2, 74);
+      try { localStorage.setItem('user_view_font_size', String(next)); } catch {}
+      return next;
+    });
+  };
+  const decreaseFontSize = () => {
+    setViewFontSize(prev => {
+      const next = Math.max(prev - 2, 8);
+      try { localStorage.setItem('user_view_font_size', String(next)); } catch {}
+      return next;
+    });
+  };
+  const resetFontSize = () => {
+    setViewFontSize(16);
+    try { localStorage.setItem('user_view_font_size', '16'); } catch {}
+  };
   const allowedChildTypes = ALLOWED_CHILDREN[currentNode ? currentNode.type : NodeType.ROOT] || [];
 
   const renderMainContent = () => {
@@ -1032,6 +1142,10 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
                   <div className=${`relative flex flex-col min-h-[500px] ${isLiquid ? 'bg-white/30' : 'bg-white'}`}>
                       <div 
                         ref=${lessonContentRef}
+                        style=${{
+                          '--lesson-font-size': `${viewFontSize}pt`,
+                          fontSize: `${viewFontSize}pt`
+                        }}
                         className="lesson-content p-6 md:p-14 prose prose-slate max-w-none leading-loose prose-a:text-indigo-600 prose-img:rounded-2xl prose-img:shadow-xl select-text"
                         dangerouslySetInnerHTML=${{ __html: displayLessonContent || '<div class="flex flex-col items-center justify-center py-32 opacity-40"><div class="w-16 h-16 bg-white/50 rounded-full mb-4 shadow-sm"></div><p class="font-serif italic text-xl text-slate-600">Chưa có nội dung bài học.</p></div>' }}
                       ></div>
@@ -1171,9 +1285,9 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
       <!-- Floating Zoom Controls -->
       ${canShowZoom && html`
         <div key="zoom-controls" className="fixed bottom-8 right-6 flex flex-col gap-2 z-40 animate-in slide-in-from-right-10">
-            <button key="btn-zoom-in" onClick=${increaseFontSize} className=${`p-3 border text-indigo-600 rounded-2xl transition-all hover:scale-110 active:scale-95 ${isLiquid ? 'bg-white/80 backdrop-blur-md border-white/60 shadow-glass hover:shadow-glass-hover' : 'bg-white border-slate-200 shadow-md hover:bg-slate-50'}`}><${Plus} size=${24} /></button>
-            <div key="zoom-level" className=${`border text-slate-600 font-bold text-xs py-1 px-2 rounded-lg text-center shadow-sm select-none ${isLiquid ? 'bg-white/80 backdrop-blur-md border-white/60' : 'bg-white border-slate-200'}`}>${viewFontSize}pt</div>
-            <button key="btn-zoom-out" onClick=${decreaseFontSize} className=${`p-3 border text-slate-600 rounded-2xl transition-all hover:scale-110 active:scale-95 ${isLiquid ? 'bg-white/80 backdrop-blur-md border-white/60 shadow-glass hover:shadow-glass-hover' : 'bg-white border-slate-200 shadow-md hover:bg-slate-50'}`}><${Minus} size=${24} /></button>
+            <button key="btn-zoom-in" title="Phóng to cỡ chữ (+2pt)" onClick=${increaseFontSize} className=${`p-3 border text-indigo-600 rounded-2xl transition-all hover:scale-110 active:scale-95 ${isLiquid ? 'bg-white/80 backdrop-blur-md border-white/60 shadow-glass hover:shadow-glass-hover' : 'bg-white border-slate-200 shadow-md hover:bg-slate-50'}`}><${Plus} size=${24} /></button>
+            <div key="zoom-level" onClick=${resetFontSize} title="Cỡ chữ hiện tại. Nhấn để đặt lại 16pt" className=${`cursor-pointer border text-slate-600 font-bold text-xs py-1 px-2 rounded-lg text-center shadow-sm select-none transition-transform hover:scale-105 active:scale-95 ${isLiquid ? 'bg-white/80 backdrop-blur-md border-white/60' : 'bg-white border-slate-200'}`}>${viewFontSize}pt</div>
+            <button key="btn-zoom-out" title="Thu nhỏ cỡ chữ (-2pt)" onClick=${decreaseFontSize} className=${`p-3 border text-slate-600 rounded-2xl transition-all hover:scale-110 active:scale-95 ${isLiquid ? 'bg-white/80 backdrop-blur-md border-white/60 shadow-glass hover:shadow-glass-hover' : 'bg-white border-slate-200 shadow-md hover:bg-slate-50'}`}><${Minus} size=${24} /></button>
         </div>
       `}
 

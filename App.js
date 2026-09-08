@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { html } from './utils/html.js';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, Link, useNavigate } from 'react-router-dom';
 import { Explorer } from './pages/Explorer.js';
@@ -172,6 +172,19 @@ const Layout = ({ children, isAppMode, uiConfig, currentBg, isOnline }) => {
 
   const isLiquid = uiConfig.style === 'liquid';
 
+  const showBackButton = useMemo(() => {
+    const bb = uiConfig?.backButton;
+    if (bb === false) return false;
+    if (bb === true) return true;
+    if (typeof bb === 'object' && bb !== null) {
+      if (bb.enabled === false) return false;
+      if (isAppMode) return bb.app !== false;
+      if (isEditMode) return bb.edit !== false;
+      return bb.view !== false;
+    }
+    return true;
+  }, [uiConfig?.backButton, isAppMode, isEditMode]);
+
   return html`
     <!-- BACKGROUND -->
     <div key="layout-background" className="fixed inset-0 -z-10 bg-slate-50 overflow-hidden pointer-events-none transition-all duration-1000">
@@ -274,7 +287,7 @@ const Layout = ({ children, isAppMode, uiConfig, currentBg, isOnline }) => {
                items=${breadcrumbs} 
                onNavigate=${handleNavigate} 
                isLiquid=${isLiquid} 
-               showBackButton=${uiConfig?.backButton !== false}
+               showBackButton=${showBackButton}
              />
           </div>
         `}
@@ -307,15 +320,19 @@ const App = () => {
   const isAppMode = window.location.pathname.includes('/special-application');
   const [isOnline, setIsOnline] = useState(true);
   const [uiConfig, setUiConfig] = useState(() => {
-    let localBackButton = true;
+    let localBackButton = { enabled: true, view: true, edit: true, app: true };
     try {
       const val = localStorage.getItem('ui_back_button');
-      if (val !== null) localBackButton = val === 'true';
+      if (val !== null) {
+        if (val === 'true') localBackButton = { enabled: true, view: true, edit: true, app: true };
+        else if (val === 'false') localBackButton = { enabled: false, view: false, edit: false, app: false };
+        else localBackButton = JSON.parse(val);
+      }
     } catch {}
     return { 
       style: 'liquid', 
       backButton: localBackButton, 
-      zoom: { view: true, edit: true, app: false }, 
+      zoom: { enabled: true, view: true, edit: true, app: false }, 
       backgroundActive: false, 
       backgrounds: [] 
     };
@@ -345,25 +362,42 @@ const App = () => {
       }
 
       if (!fullConfig) {
-          fullConfig = { classes: [], background: { images: [], active: false }, ui: { style: 'liquid', backButton: true, zoom: { view: true, edit: true, app: false } } };
+          fullConfig = { classes: [], background: { images: [], active: false }, ui: { style: 'liquid', backButton: { enabled: true, view: true, edit: true, app: true }, zoom: { enabled: true, view: true, edit: true, app: false } } };
       }
 
-      let savedBackButton = true;
+      let savedBackButton = { enabled: true, view: true, edit: true, app: true };
       try {
         const val = localStorage.getItem('ui_back_button');
-        if (val !== null) savedBackButton = val === 'true';
+        if (val !== null) {
+          if (val === 'true') savedBackButton = { enabled: true, view: true, edit: true, app: true };
+          else if (val === 'false') savedBackButton = { enabled: false, view: false, edit: false, app: false };
+          else savedBackButton = JSON.parse(val);
+        }
       } catch {}
 
       const bgImages = (fullConfig.background && Array.isArray(fullConfig.background.images)) ? fullConfig.background.images : [];
       const bgActive = !!(fullConfig.background && fullConfig.background.active);
       const uiStyle = (fullConfig.ui && fullConfig.ui.style) || 'liquid';
-      const uiZoom = (fullConfig.ui && fullConfig.ui.zoom) || { view: true, edit: true, app: false };
-      const uiBackButton = fullConfig?.ui?.backButton !== undefined ? fullConfig.ui.backButton : savedBackButton;
+      const uiZoom = (fullConfig.ui && fullConfig.ui.zoom) || { enabled: true, view: true, edit: true, app: false };
+      const rawBackButton = fullConfig?.ui?.backButton !== undefined ? fullConfig.ui.backButton : savedBackButton;
+      let uiBackButton = { enabled: true, view: true, edit: true, app: true };
+      if (rawBackButton === false) {
+        uiBackButton = { enabled: false, view: false, edit: false, app: false };
+      } else if (rawBackButton === true) {
+        uiBackButton = { enabled: true, view: true, edit: true, app: true };
+      } else if (typeof rawBackButton === 'object' && rawBackButton !== null) {
+        uiBackButton = {
+          enabled: rawBackButton.enabled !== false,
+          view: rawBackButton.view !== false,
+          edit: rawBackButton.edit !== false,
+          app: rawBackButton.app !== false
+        };
+      }
 
       setUiConfig({
           style: uiStyle,
           zoom: uiZoom,
-          backButton: uiBackButton !== false,
+          backButton: uiBackButton,
           backgroundActive: bgActive,
           backgrounds: bgImages
       });

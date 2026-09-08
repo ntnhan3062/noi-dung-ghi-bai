@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { html } from '../utils/html.js';
 import { ChevronRight, Home, ArrowLeft } from 'lucide-react';
 
@@ -8,9 +8,27 @@ export const Breadcrumbs = ({ items, onNavigate, isLiquid, showBackButton = true
   const isHoveringRef = useRef(false);
   const hasScrolledRef = useRef(false);
   const lastItemsIdRef = useRef('');
+  const [navHeight, setNavHeight] = useState(44);
 
   const safeItems = Array.isArray(items) ? items : [];
   const currentItemsId = safeItems.map(i => i.id).join('-');
+
+  useEffect(() => {
+    if (!navRef.current) return;
+    const updateNavHeight = () => {
+      if (navRef.current) {
+        const height = navRef.current.offsetHeight;
+        if (height > 0) {
+          setNavHeight(height);
+        }
+      }
+    };
+
+    updateNavHeight();
+    const observer = new ResizeObserver(updateNavHeight);
+    observer.observe(navRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   const handleBack = () => {
     try {
@@ -96,7 +114,13 @@ export const Breadcrumbs = ({ items, onNavigate, isLiquid, showBackButton = true
           <button 
             key="back-folder-button"
             onClick=${handleBack}
-            className=${`flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-full text-slate-700 hover:text-indigo-600 shadow-sm transition-all border active:scale-95 ${isLiquid ? 'bg-white/40 backdrop-blur-md border-white/50 shadow-glass hover:bg-white/60 hover:border-indigo-100 hover:text-indigo-600' : 'bg-white border-slate-200 hover:bg-slate-50 hover:text-indigo-600'}`}
+            style=${{ 
+              width: `${navHeight}px`, 
+              height: `${navHeight}px`, 
+              minWidth: `${navHeight}px`, 
+              minHeight: `${navHeight}px` 
+            }}
+            className=${`flex-shrink-0 flex items-center justify-center rounded-full text-slate-700 hover:text-indigo-600 shadow-sm transition-all border active:scale-95 aspect-square ${isLiquid ? 'bg-white/40 backdrop-blur-md border-white/50 shadow-glass hover:bg-white/60 hover:border-indigo-100 hover:text-indigo-600' : 'bg-white border-slate-200 hover:bg-slate-50 hover:text-indigo-600'}`}
             title="Quay lại mục trước"
             aria-label="Quay lại mục trước"
           >

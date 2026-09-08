@@ -3,7 +3,7 @@
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no" />
     <script>
       (function() {
         var path = window.location.pathname;
@@ -12,6 +12,69 @@
           var target = window.location.origin + '/noi-dung-ghi-bai/view/' + window.location.search + window.location.hash;
           window.location.replace(target);
         }
+      })();
+
+      // CHẶN HOÀN TOÀN ZOOM CỦA TRÌNH DUYỆT
+      (function() {
+        // 1. Chặn phím tắt zoom: Ctrl/Cmd + (+, -, 0, =, _)
+        window.addEventListener('keydown', function(e) {
+          if (e.ctrlKey || e.metaKey) {
+            var key = e.key;
+            var code = e.code;
+            if (
+              key === '+' || key === '-' || key === '=' || key === '_' || key === '0' ||
+              code === 'Equal' || code === 'Minus' || code === 'NumpadAdd' ||
+              code === 'NumpadSubtract' || code === 'Digit0' || code === 'Numpad0'
+            ) {
+              e.preventDefault();
+              e.stopPropagation();
+              return false;
+            }
+          }
+        }, { capture: true, passive: false });
+
+        // 2. Chặn Ctrl/Cmd + chuột cuộn và pinch-to-zoom trên trackpad
+        window.addEventListener('wheel', function(e) {
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          }
+        }, { capture: true, passive: false });
+
+        // 3. Chặn pinch-to-zoom đa điểm chạm trên màn hình cảm ứng
+        document.addEventListener('touchstart', function(e) {
+          if (e.touches && e.touches.length > 1) {
+            e.preventDefault();
+          }
+        }, { capture: true, passive: false });
+
+        document.addEventListener('touchmove', function(e) {
+          if (e.touches && e.touches.length > 1) {
+            e.preventDefault();
+          }
+        }, { capture: true, passive: false });
+
+        // 4. Chặn chạm đúp (double-tap to zoom) trên iOS Safari và mobile
+        var lastTouchEnd = 0;
+        document.addEventListener('touchend', function(e) {
+          var now = Date.now();
+          if (now - lastTouchEnd <= 300) {
+            e.preventDefault();
+          }
+          lastTouchEnd = now;
+        }, { capture: true, passive: false });
+
+        // 5. Chặn gesture zoom trên Safari macOS / iOS
+        document.addEventListener('gesturestart', function(e) {
+          e.preventDefault();
+        }, { capture: true, passive: false });
+        document.addEventListener('gesturechange', function(e) {
+          e.preventDefault();
+        }, { capture: true, passive: false });
+        document.addEventListener('gestureend', function(e) {
+          e.preventDefault();
+        }, { capture: true, passive: false });
       })();
     </script>
     <title>Nội dung ghi bài</title>
@@ -194,6 +257,68 @@
       .prose :where(span.math-tex):not(:where([class~="not-prose"] *)) {
         font-style: normal !important;
         display: inline-block;
+      }
+      
+      /* Chặn zoom trình duyệt ở cấp CSS */
+      html, body {
+        touch-action: pan-x pan-y;
+        -webkit-text-size-adjust: 100%;
+        -moz-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+      }
+
+      /* Zoom chữ bằng nút zoom cho nội dung bài học */
+      .lesson-content {
+        --lesson-font-size: 16pt;
+        font-size: var(--lesson-font-size, 16pt) !important;
+        line-height: 1.8 !important;
+      }
+      
+      .lesson-content,
+      .lesson-content p,
+      .lesson-content div:not(.math-tex):not(.katex-display),
+      .lesson-content li,
+      .lesson-content td,
+      .lesson-content th,
+      .lesson-content a,
+      .lesson-content b,
+      .lesson-content strong,
+      .lesson-content i,
+      .lesson-content em,
+      .lesson-content u,
+      .lesson-content s,
+      .lesson-content span:not(.katex):not(.katex *):not(.math-tex) {
+        font-size: var(--lesson-font-size, 16pt) !important;
+        line-height: 1.8 !important;
+      }
+
+      .lesson-content h1, .lesson-content h1 *:not(.katex):not(.katex *) {
+        font-size: calc(var(--lesson-font-size, 16pt) * 1.6) !important;
+        line-height: 1.3 !important;
+      }
+
+      .lesson-content h2, .lesson-content h2 *:not(.katex):not(.katex *) {
+        font-size: calc(var(--lesson-font-size, 16pt) * 1.35) !important;
+        line-height: 1.4 !important;
+      }
+
+      .lesson-content h3, .lesson-content h3 *:not(.katex):not(.katex *) {
+        font-size: calc(var(--lesson-font-size, 16pt) * 1.2) !important;
+        line-height: 1.4 !important;
+      }
+
+      .lesson-content h4, .lesson-content h4 *:not(.katex):not(.katex *) {
+        font-size: calc(var(--lesson-font-size, 16pt) * 1.1) !important;
+        line-height: 1.5 !important;
+      }
+
+      .lesson-content pre, .lesson-content code {
+        font-size: calc(var(--lesson-font-size, 16pt) * 0.9) !important;
+      }
+
+      .lesson-content .math-tex {
+        font-size: var(--lesson-font-size, 16pt) !important;
       }
       
       .lesson-content .katex {
