@@ -13,6 +13,81 @@ import { useClasses } from '../context/ClassContext.js';
 import { StatusPage } from '../components/StatusPage.js';
 import Sortable from 'sortablejs';
 
+export const normalizeMathSpans = (html) => {
+  if (!html) return '';
+  if (typeof document === 'undefined') return html;
+  
+  // 1. Create a temporary element to safely unwrap existing math-tex spans
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  const mathSpans = Array.from(div.querySelectorAll('span.math-tex'));
+  mathSpans.forEach(span => {
+    const parent = span.parentNode;
+    if (parent) {
+      while (span.firstChild) {
+        parent.insertBefore(span.firstChild, span);
+      }
+      parent.removeChild(span);
+    }
+  });
+  
+  let content = div.innerHTML;
+  
+  // 2. Extract all HTML tags to protect them from being split by regex
+  const tags = [];
+  content = content.replace(/<[^>]+>/g, (match) => {
+    const id = `___TAG_${tags.length}___`;
+    tags.push({ id, content: match });
+    return id;
+  });
+  
+  // 3. Protect escaped dollars (\$ should not be treated as math delimiter)
+  content = content.replace(/\\(\$)/g, '___ESC_DOL___');
+  
+  // 4. Identify Math Formulas and wrap them in placeholders with display/inline classes
+  const mathPlaceholders = [];
+  
+  // Handle Display Math ($$ ... $$ and \[ ... \]) - Match non-greedily
+  content = content.replace(/\$\$([\s\S]+?)\$\$/g, (match, p1) => {
+    const id = `___MATH_DISP_${mathPlaceholders.length}___`;
+    mathPlaceholders.push({ id, content: `<span class="math-tex math-display">$$${p1}$$</span>` });
+    return id;
+  });
+  content = content.replace(/\\\[([\s\S]+?)\\\]/g, (match, p1) => {
+    const id = `___MATH_DISP_${mathPlaceholders.length}___`;
+    mathPlaceholders.push({ id, content: `<span class="math-tex math-display">\\[${p1}\\]</span>` });
+    return id;
+  });
+  
+  // Handle Inline Math ($ ... $ and \( ... \))
+  // We match $...$ where the content doesn't contain another $
+  content = content.replace(/\$([^\$]+?)\$/g, (match, p1) => {
+    const id = `___MATH_INL_${mathPlaceholders.length}___`;
+    mathPlaceholders.push({ id, content: `<span class="math-tex math-inline">$${p1}$</span>` });
+    return id;
+  });
+  content = content.replace(/\\\(([\s\S]+?)\\\)/g, (match, p1) => {
+    const id = `___MATH_INL_${mathPlaceholders.length}___`;
+    mathPlaceholders.push({ id, content: `<span class="math-tex math-inline">\\(${p1}\\)</span>` });
+    return id;
+  });
+  
+  // 5. Restore escaped dollars
+  content = content.replace(/___ESC_DOL___/g, '\\$');
+  
+  // 6. Restore Math Placeholders
+  mathPlaceholders.forEach(({ id, content: mathHtml }) => {
+    content = content.replace(id, mathHtml);
+  });
+  
+  // 7. Restore HTML Tags
+  tags.forEach(({ id, content: tagHtml }) => {
+    content = content.replace(id, tagHtml);
+  });
+  
+  return content;
+};
+
 export const Explorer = ({ mode, isAppMode, uiConfig }) => {
   const { nodeId } = useParams();
   const navigate = useNavigate();
@@ -509,7 +584,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
             'Verdana=verdana,geneva; ' +
             'Webdings=webdings; ' +
             'Wingdings=wingdings,zapf dingbats',
-          content_style: 'body { margin: 1.5rem; background-color: #ffffff; } .math-tex { opacity: 0; visibility: hidden; max-width: 100%; } .math-tex.is-rendered { opacity: 1; visibility: visible; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; } .math-tex.is-rendered::-webkit-scrollbar { width: 0; height: 0; background-color: rgba(0,0,0,0); } .katex-html { display: none !important; } .katex-mathml { display: inline-block !important; } .katex-display { display: block !important; width: 100% !important; overflow-x: auto !important; scrollbar-width: none !important; -ms-overflow-style: none !important; } .katex-display::-webkit-scrollbar { width: 0; height: 0; background-color: rgba(0,0,0,0); } #voice-interim { color: #94a3b8; background-color: #f1f5f9; padding: 0 2px; border-radius: 2px; }',
+          content_style: 'body { margin: 1.5rem; background-color: #ffffff; } @keyframes math-skeleton-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } } .math-tex:not(.is-rendered):not(:has(.katex)) { display: inline-block !important; vertical-align: -0.15em; width: 3.75rem; height: 1.15em; margin: 0 0.25rem; border-radius: 4px; background: linear-gradient(90deg, #e2e8f0 20%, #f1f5f9 40%, #e2e8f0 60%); background-size: 200% 100%; animation: math-skeleton-shimmer 1.5s ease-in-out infinite; color: transparent !important; } .math-tex.is-rendered { opacity: 1; visibility: visible; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; } .math-tex.is-rendered::-webkit-scrollbar { width: 0; height: 0; background-color: rgba(0,0,0,0); } .katex-html { display: none !important; } .katex-mathml { display: inline-block !important; } .katex-display { display: block !important; width: 100% !important; overflow-x: auto !important; scrollbar-width: none !important; -ms-overflow-style: none !important; } .katex-display::-webkit-scrollbar { width: 0; height: 0; background-color: rgba(0,0,0,0); } #voice-interim { color: #94a3b8; background-color: #f1f5f9; padding: 0 2px; border-radius: 2px; }',
           branding: false,
           promotion: false,
           formats: {
@@ -803,70 +878,10 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
   const handleEditTitle = (node) => { setModalMode('UPDATE'); setTargetType(node.type); setEditingNode(node); setIsModalOpen(true); };
   const toggleContentEditor = () => setIsEditingContent(true);
 
-  const normalizeMathSpans = (html) => {
-    if (!html) return '';
-    
-    // 1. Create a temporary element to safely unwrap existing math-tex spans
-    const div = document.createElement('div');
-    div.innerHTML = html;
-    const mathSpans = Array.from(div.querySelectorAll('span.math-tex'));
-    mathSpans.forEach(span => {
-      const parent = span.parentNode;
-      if (parent) {
-        while (span.firstChild) {
-          parent.insertBefore(span.firstChild, span);
-        }
-        parent.removeChild(span);
-      }
-    });
-    
-    let content = div.innerHTML;
-    
-    // 2. Extract all HTML tags to protect them from being split by regex
-    const tags = [];
-    content = content.replace(/<[^>]+>/g, (match) => {
-      const id = `___TAG_${tags.length}___`;
-      tags.push({ id, content: match });
-      return id;
-    });
-    
-    // 3. Protect escaped dollars (\$ should not be treated as math delimiter)
-    content = content.replace(/\\(\$)/g, '___ESC_DOL___');
-    
-    // 4. Identify Math Formulas and wrap them in placeholders
-    const mathPlaceholders = [];
-    
-    // Handle Display Math ($$ ... $$) - Match non-greedily
-    content = content.replace(/\$\$([\s\S]+?)\$\$/g, (match, p1) => {
-      const id = `___MATH_DISP_${mathPlaceholders.length}___`;
-      mathPlaceholders.push({ id, content: `<span class="math-tex">$$${p1}$$</span>` });
-      return id;
-    });
-    
-    // Handle Inline Math ($ ... $)
-    // We match $...$ where the content doesn't contain another $
-    content = content.replace(/\$([^\$]+?)\$/g, (match, p1) => {
-      const id = `___MATH_INL_${mathPlaceholders.length}___`;
-      mathPlaceholders.push({ id, content: `<span class="math-tex">$${p1}$</span>` });
-      return id;
-    });
-    
-    // 5. Restore escaped dollars
-    content = content.replace(/___ESC_DOL___/g, '\\$');
-    
-    // 6. Restore Math Placeholders
-    mathPlaceholders.forEach(({ id, content: mathHtml }) => {
-      content = content.replace(id, mathHtml);
-    });
-    
-    // 7. Restore HTML Tags
-    // We use a loop to ensure all tags are restored even if they were nested in placeholders
-    tags.forEach(({ id, content: tagHtml }) => {
-      content = content.replace(id, tagHtml);
-    });
-    
-    return content;
-  };
+  const displayLessonContent = useMemo(() => {
+    if (!currentNode?.content) return '';
+    return normalizeMathSpans(currentNode.content);
+  }, [currentNode?.id, currentNode?.content]);
 
   const handleSaveContent = async () => {
     const editor = window.tinymce.get('editor-container');
@@ -1018,7 +1033,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
                       <div 
                         ref=${lessonContentRef}
                         className="lesson-content p-6 md:p-14 prose prose-slate max-w-none leading-loose prose-a:text-indigo-600 prose-img:rounded-2xl prose-img:shadow-xl select-text"
-                        dangerouslySetInnerHTML=${{ __html: currentNode.content || '<div class="flex flex-col items-center justify-center py-32 opacity-40"><div class="w-16 h-16 bg-white/50 rounded-full mb-4 shadow-sm"></div><p class="font-serif italic text-xl text-slate-600">Chưa có nội dung bài học.</p></div>' }}
+                        dangerouslySetInnerHTML=${{ __html: displayLessonContent || '<div class="flex flex-col items-center justify-center py-32 opacity-40"><div class="w-16 h-16 bg-white/50 rounded-full mb-4 shadow-sm"></div><p class="font-serif italic text-xl text-slate-600">Chưa có nội dung bài học.</p></div>' }}
                       ></div>
                   </div>
                 `}

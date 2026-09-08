@@ -53,32 +53,126 @@ input, textarea, .select-text {
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1) !important;
 }
 
-/* Global KaTeX Hiding Fallback - Ultimate Aggressive */
-.math-tex:not(.is-rendered) {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  position: fixed !important;
-  top: -9999px !important;
-  height: 0 !important;
-  width: 0 !important;
-  overflow: hidden !important;
-  transition: none !important;
+/* YouTube-style Shimmer Animation for LaTeX Math */
+@keyframes math-skeleton-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
+/* Skeleton Placeholder for Inline Math ($...$) - Thanh giữ chỗ nhỏ */
+.math-tex:not(.is-rendered):not(:has(.katex)),
+.math-tex.math-inline:not(.is-rendered):not(:has(.katex)) {
+  display: inline-block !important;
+  position: relative !important;
+  vertical-align: -0.15em !important;
+  width: 3.75rem !important;
+  min-width: 2.25rem !important;
+  max-width: 5.5rem !important;
+  height: 1.15em !important;
+  margin: 0 0.25rem !important;
+  border-radius: 0.375rem !important;
+  overflow: hidden !important;
+  color: transparent !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  user-select: none !important;
+  pointer-events: none !important;
+  background: linear-gradient(90deg, #e2e8f0 20%, #f1f5f9 40%, #e2e8f0 60%) !important;
+  background-size: 200% 100% !important;
+  animation: math-skeleton-shimmer 1.5s ease-in-out infinite !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Skeleton Placeholder for Display Math ($$...$$) - Dòng giữ chỗ ở giữa */
+.math-tex.math-display:not(.is-rendered):not(:has(.katex)) {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  width: 100% !important;
+  margin: 1.5rem auto !important;
+  height: 2.75rem !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  animation: none !important;
+  overflow: hidden !important;
+  color: transparent !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  user-select: none !important;
+  pointer-events: none !important;
+}
+
+.math-tex.math-display:not(.is-rendered):not(:has(.katex))::before {
+  content: "" !important;
+  display: block !important;
+  width: 48% !important;
+  min-width: 180px !important;
+  max-width: 420px !important;
+  height: 2.25rem !important;
+  border-radius: 0.625rem !important;
+  background: linear-gradient(90deg, #e2e8f0 20%, #f1f5f9 40%, #e2e8f0 60%) !important;
+  background-size: 200% 100% !important;
+  animation: math-skeleton-shimmer 1.5s ease-in-out infinite !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Rendered state: Reveal real Math content with smooth transition */
 .math-tex.is-rendered,
-.is-rendered .math-tex {
+.is-rendered .math-tex,
+.math-tex:has(.katex) {
   display: inline-flex !important;
   position: static !important;
   opacity: 1 !important;
   visibility: visible !important;
+  color: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  animation: none !important;
+  user-select: text !important;
+  pointer-events: auto !important;
   width: auto !important;
   height: auto !important;
   max-width: 100% !important;
+  overflow: visible !important;
+  transition: opacity 0.25s ease-out !important;
+}
+
+.math-tex.math-inline.is-rendered,
+.math-tex.math-inline:has(.katex) {
+  display: inline-flex !important;
+  align-items: center !important;
+  vertical-align: middle !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: 100% !important;
+  margin: 0 !important;
   overflow-x: auto !important;
   scrollbar-width: none !important;
   -ms-overflow-style: none !important;
-  transition: opacity 0.3s ease-in-out;
+}
+
+.math-tex.math-display.is-rendered,
+.math-tex.math-display:has(.katex) {
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  margin: 1.5em 0 !important;
+  text-align: center !important;
+  overflow-x: auto !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.math-tex.math-display.is-rendered::before,
+.math-tex.math-display:has(.katex)::before {
+  display: none !important;
+  content: none !important;
 }
 
 .math-tex.is-rendered::-webkit-scrollbar,
