@@ -106,6 +106,114 @@ export const hasLatexMath = (content) => {
   return false;
 };
 
+// Tạo nội dung skeleton giữ chỗ chính xác từng vị trí chữ, cỡ chữ, chiều cao dòng
+export const generateLessonSkeletonHtml = (rawHtml) => {
+  if (!rawHtml || typeof rawHtml !== 'string') return '';
+  if (typeof document === 'undefined') return '';
+
+  try {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = rawHtml;
+
+    const wrapTextNode = (textNode) => {
+      const text = textNode.textContent;
+      if (!text || text.length === 0) return;
+
+      // Giữ nguyên khoảng trắng thuần túy giữa các thẻ
+      if (/^\s*$/.test(text)) return;
+
+      // Tách khoảng trắng đầu/cuối để giữ nguyên khoảng cách từ tự nhiên giữa các phần tử
+      const match = text.match(/^(\s*)([\s\S]*?)(\s*)$/);
+      const leadingSpace = match ? match[1] : '';
+      const coreText = match ? match[2] : text;
+      const trailingSpace = match ? match[3] : '';
+
+      const parent = textNode.parentNode;
+      if (!parent) return;
+
+      const fragment = document.createDocumentFragment();
+      if (leadingSpace) {
+        fragment.appendChild(document.createTextNode(leadingSpace));
+      }
+
+      if (coreText) {
+        const span = document.createElement('span');
+        span.className = 'inline rounded-md bg-slate-200/85 text-transparent select-none animate-pulse';
+        span.style.webkitBoxDecorationBreak = 'clone';
+        span.style.boxDecorationBreak = 'clone';
+        span.style.userSelect = 'none';
+        span.style.color = 'transparent';
+        span.style.textShadow = 'none';
+        span.textContent = coreText;
+        fragment.appendChild(span);
+      }
+
+      if (trailingSpace) {
+        fragment.appendChild(document.createTextNode(trailingSpace));
+      }
+
+      parent.replaceChild(fragment, textNode);
+    };
+
+    const processNode = (node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        wrapTextNode(node);
+        return;
+      }
+
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const tagName = node.tagName.toLowerCase();
+
+        // 1. Công thức toán học (display hoặc inline)
+        if (node.classList.contains('math-tex') || node.classList.contains('katex')) {
+          const isDisplay = node.classList.contains('math-display') || node.classList.contains('katex-display');
+          const span = document.createElement('span');
+          if (isDisplay) {
+            span.className = 'block h-12 w-3/5 max-w-md mx-auto bg-slate-200/85 rounded-2xl animate-pulse my-4';
+          } else {
+            span.className = 'inline-block h-5 min-w-[2.5rem] w-[4rem] bg-slate-200/85 rounded-md align-middle mx-1 animate-pulse';
+          }
+          node.parentNode.replaceChild(span, node);
+          return;
+        }
+
+        // 2. Hình ảnh
+        if (tagName === 'img') {
+          const div = document.createElement('div');
+          div.className = 'rounded-2xl bg-slate-200/85 animate-pulse my-4 w-full max-w-md h-48';
+          node.parentNode.replaceChild(div, node);
+          return;
+        }
+
+        // 3. Iframe / Video
+        if (tagName === 'iframe' || tagName === 'video') {
+          const div = document.createElement('div');
+          div.className = 'rounded-2xl bg-slate-200/85 animate-pulse my-4 w-full max-w-lg h-56';
+          node.parentNode.replaceChild(div, node);
+          return;
+        }
+
+        // 4. Giữ nguyên ngắt dòng br và đường kẻ hr
+        if (tagName === 'br') return;
+        if (tagName === 'hr') {
+          node.className = (node.className || '') + ' opacity-30';
+          return;
+        }
+
+        // 5. Đệ quy duyệt các phần tử con
+        const children = Array.from(node.childNodes);
+        children.forEach(child => processNode(child));
+      }
+    };
+
+    Array.from(tempDiv.childNodes).forEach(child => processNode(child));
+    return tempDiv.innerHTML;
+  } catch (err) {
+    console.error('Error generating lesson skeleton:', err);
+    return rawHtml;
+  }
+};
+
 export const Explorer = ({ mode, isAppMode, uiConfig }) => {
   const { nodeId } = useParams();
   const navigate = useNavigate();
@@ -1049,6 +1157,11 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     return normalizeMathSpans(currentNode.content);
   }, [currentNode?.id, currentNode?.content]);
 
+  const skeletonLessonContent = useMemo(() => {
+    if (!displayLessonContent) return '';
+    return generateLessonSkeletonHtml(displayLessonContent);
+  }, [displayLessonContent]);
+
   const handleSaveContent = async () => {
     const editor = window.tinymce.get('editor-container');
     if (editor) {
@@ -1168,17 +1281,26 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
                     `}
                   </div>
                   <div key="title-box" className="relative flex items-center">
-                    ${hasMath && !isMathRendered ? html`
-                      <div key="title-skeleton" className="h-8 md:h-10 bg-slate-200/80 rounded-2xl w-48 md:w-80 animate-pulse my-1"></div>
-                    ` : html`
-                      <h1 
-                        ref=${marqueeTitleRef}
-                        className=${`font-serif font-bold text-slate-900 leading-tight drop-shadow-sm whitespace-normal ${isAppMode ? 'text-2xl md:text-3xl' : (isMultiLine ? 'text-xl md:text-3xl' : 'text-2xl md:text-4xl')}`}
-                        style=${selectNoneStyle}
-                      >
-                        ${currentNode.title}
-                      </h1>
-                    `}
+                    <h1 
+                      ref=${marqueeTitleRef}
+                      className=${`font-serif font-bold text-slate-900 leading-tight drop-shadow-sm whitespace-normal ${isAppMode ? 'text-2xl md:text-3xl' : (isMultiLine ? 'text-xl md:text-3xl' : 'text-2xl md:text-4xl')}`}
+                      style=${selectNoneStyle}
+                    >
+                      ${hasMath && !isMathRendered ? html`
+                        <span 
+                          className="inline rounded-xl bg-slate-200/85 text-transparent select-none animate-pulse box-decoration-clone px-1 py-0.5"
+                          style=${{
+                            WebkitBoxDecorationBreak: 'clone',
+                            boxDecorationBreak: 'clone',
+                            userSelect: 'none',
+                            color: 'transparent',
+                            textShadow: 'none'
+                          }}
+                        >
+                          ${currentNode.title}
+                        </span>
+                      ` : (currentNode.title)}
+                    </h1>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0 ml-4">
@@ -1212,35 +1334,15 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
                 ` : html`
                   <div className=${`relative flex flex-col min-h-[500px] ${isLiquid ? 'bg-white/30' : 'bg-white'}`}>
                       ${hasMath && !isMathRendered && html`
-                        <div key="math-loading-state" className="p-6 md:p-14 space-y-6 w-full animate-in fade-in duration-200">
-                          <div className="space-y-4 animate-pulse pt-2">
-                            <div className="h-5 bg-slate-200/80 rounded-full w-3/4"></div>
-                            <div className="space-y-2.5">
-                              <div className="h-4 bg-slate-200/70 rounded-full w-full"></div>
-                              <div className="h-4 bg-slate-200/70 rounded-full w-5/6"></div>
-                              <div className="h-4 bg-slate-200/70 rounded-full w-11/12"></div>
-                            </div>
-                            <div className="py-4 flex justify-center">
-                              <div className="h-14 bg-indigo-100/60 border border-indigo-200/50 rounded-2xl w-3/5 max-w-md shadow-xs flex items-center justify-center">
-                                <div className="h-4 bg-indigo-200/70 rounded-full w-1/2"></div>
-                              </div>
-                            </div>
-                            <div className="space-y-2.5">
-                              <div className="h-4 bg-slate-200/70 rounded-full w-full"></div>
-                              <div className="h-4 bg-slate-200/70 rounded-full w-4/5"></div>
-                              <div className="h-4 bg-slate-200/70 rounded-full w-2/3"></div>
-                            </div>
-                            <div className="py-3 flex justify-center">
-                              <div className="h-10 bg-indigo-100/50 border border-indigo-200/40 rounded-xl w-1/2 max-w-xs flex items-center justify-center">
-                                <div className="h-3 bg-indigo-200/60 rounded-full w-1/3"></div>
-                              </div>
-                            </div>
-                            <div className="space-y-2.5">
-                              <div className="h-4 bg-slate-200/70 rounded-full w-11/12"></div>
-                              <div className="h-4 bg-slate-200/70 rounded-full w-3/4"></div>
-                            </div>
-                          </div>
-                        </div>
+                        <div 
+                          key="math-skeleton-content" 
+                          style=${{
+                            '--lesson-font-size': `${viewFontSize}pt`,
+                            fontSize: `${viewFontSize}pt`
+                          }}
+                          className="lesson-content-skeleton p-6 md:p-14 prose prose-slate max-w-none leading-loose select-none pointer-events-none relative"
+                          dangerouslySetInnerHTML=${{ __html: skeletonLessonContent }}
+                        ></div>
                       `}
                       <div 
                         ref=${lessonContentRef}
@@ -1248,7 +1350,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
                           '--lesson-font-size': `${viewFontSize}pt`,
                           fontSize: `${viewFontSize}pt`
                         }}
-                        className=${`lesson-content p-6 md:p-14 prose prose-slate max-w-none leading-loose prose-a:text-indigo-600 prose-img:rounded-2xl prose-img:shadow-xl select-text transition-opacity duration-300 ${hasMath && !isMathRendered ? 'invisible opacity-0 pointer-events-none absolute inset-x-0 top-0 -z-10 max-h-0 overflow-hidden' : 'visible opacity-100 relative'}`}
+                        className=${`lesson-content p-6 md:p-14 prose prose-slate max-w-none leading-loose prose-a:text-indigo-600 prose-img:rounded-2xl prose-img:shadow-xl select-text transition-opacity duration-200 ${hasMath && !isMathRendered ? 'invisible opacity-0 pointer-events-none absolute inset-x-0 top-0 -z-10 max-h-0 overflow-hidden' : 'visible opacity-100 relative'}`}
                         dangerouslySetInnerHTML=${{ __html: displayLessonContent || '<div class="flex flex-col items-center justify-center py-32 opacity-40"><div class="w-16 h-16 bg-white/50 rounded-full mb-4 shadow-sm"></div><p class="font-serif italic text-xl text-slate-600">Chưa có nội dung bài học.</p></div>' }}
                       ></div>
                   </div>
