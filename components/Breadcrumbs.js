@@ -26,6 +26,14 @@ export const Breadcrumbs = ({ items, onNavigate, isLiquid, showBackButton = true
   const [activeDeletingId, setActiveDeletingId] = useState(null);
   const [showCursor, setShowCursor] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [enteringItemIds, setEnteringItemIds] = useState(() => new Set());
+  
+  const isDeletingRef = useRef(false);
+  const targetPathIdRef = useRef(null);
+  const safetyTimerRef = useRef(null);
+  const prevItemsLengthRef = useRef(safeItems.length);
+  const isInitialMountRef = useRef(true);
+
   const animTimeoutRef = useRef(null);
   const isMountedRef = useRef(true);
 
@@ -34,11 +42,28 @@ export const Breadcrumbs = ({ items, onNavigate, isLiquid, showBackButton = true
     return () => {
       isMountedRef.current = false;
       if (animTimeoutRef.current) clearTimeout(animTimeoutRef.current);
+      if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
     };
   }, []);
 
-  // Đồng bộ displayItems khi danh sách items từ props thay đổi (khi không trong quá trình animation)
+  // Đồng bộ displayItems khi danh sách items từ props thay đổi
   useEffect(() => {
+    // Nếu đang trong hoặc ngay sau quá trình xóa bằng backspace
+    if (isDeletingRef.current) {
+      const isTargetReached = targetPathIdRef.current === '__HOME__'
+        ? safeItems.length === 0
+        : safeItems.length > 0 && safeItems[safeItems.length - 1].id === targetPathIdRef.current;
+
+      if (!isTargetReached) {
+        // safeItems từ props vẫn là danh sách cũ chưa kịp cập nhật, TUYỆT ĐỐI không ghi đè displayItems
+        return;
+      }
+      // Đã tới đích thành công
+      isDeletingRef.current = false;
+      targetPathIdRef.current = null;
+      if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
+    }
+
     if (!isAnimating) {
       setDisplayItems(safeItems.map(i => ({
         id: i.id,
@@ -47,7 +72,34 @@ export const Breadcrumbs = ({ items, onNavigate, isLiquid, showBackButton = true
         arrowFading: false
       })));
     }
-  }, [currentItemsId, isAnimating]);
+  }, [currentItemsId, isAnimating, safeItems]);
+
+  // Hiệu ứng fade in từ trái sang phải cho '>' và tên mục khi truy cập mục mới
+  useEffect(() => {
+    if (isDeletingRef.current || isAnimating) {
+      prevItemsLengthRef.current = safeItems.length;
+      return;
+    }
+
+    // Nếu không phải mount lần đầu và số lượng items tăng (người dùng bấm truy cập mục mới)
+    if (!isInitialMountRef.current && safeItems.length > prevItemsLengthRef.current) {
+      const newItems = safeItems.slice(prevItemsLengthRef.current);
+      const newIds = new Set(newItems.map(i => i.id));
+      setEnteringItemIds(newIds);
+
+      const timer = setTimeout(() => {
+        if (isMountedRef.current) {
+          setEnteringItemIds(new Set());
+        }
+      }, 500);
+
+      prevItemsLengthRef.current = safeItems.length;
+      return () => clearTimeout(timer);
+    }
+
+    isInitialMountRef.current = false;
+    prevItemsLengthRef.current = safeItems.length;
+  }, [currentItemsId, isAnimating, safeItems]);
 
   useEffect(() => {
     if (!navRef.current) return;
@@ -72,6 +124,14 @@ export const Breadcrumbs = ({ items, onNavigate, isLiquid, showBackButton = true
     setActiveDeletingId(null);
     setShowCursor(false);
     onNavigate(targetId, 'left');
+
+    if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
+    safetyTimerRef.current = setTimeout(() => {
+      if (isMountedRef.current && isDeletingRef.current) {
+        isDeletingRef.current = false;
+        targetPathIdRef.current = null;
+      }
+    }, 1500);
   }, [onNavigate]);
 
   // Kích hoạt hiệu ứng con trỏ ảo xóa lùi (backspace) từ mục cuối cùng về targetIndex
@@ -94,6 +154,9 @@ export const Breadcrumbs = ({ items, onNavigate, isLiquid, showBackButton = true
       return;
     }
 
+    isDeletingRef.current = true;
+    targetPathIdRef.current = targetId === null ? '__HOME__' : targetId;
+    setEnteringItemIds(new Set());
     setIsAnimating(true);
     setDisplayItems(initialList);
 
@@ -113,7 +176,7 @@ export const Breadcrumbs = ({ items, onNavigate, isLiquid, showBackButton = true
       const originalTitle = itemToDelete.title || '';
       let charsLeft = originalTitle.length;
       
-      // Tốc độ vừa nhanh vừa đẹp: chia làm khoảng 6-7 nhịp (~16ms mỗi nhịp => ~110ms cho việc xóa chữ)
+      // Tốc độ nhịp xóa vừa nhanh vừa rõ: chia làm 6-7 nhịp
       const stepSize = Math.max(1, Math.ceil(originalTitle.length / 7));
 
       const step = () => {
@@ -262,6 +325,38 @@ export const Breadcrumbs = ({ items, onNavigate, isLiquid, showBackButton = true
       <style key="breadcrumbs-style">
         .breadcrumbs-scroll::-webkit-scrollbar { display: none; }
         .breadcrumbs-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
+        @keyframes bcFadeInLeftSep {
+          0% {
+            opacity: 0;
+            transform: translateX(-14px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+
+        @keyframes bcFadeInLeftItem {
+          0% {
+            opacity: 0;
+            transform: translateX(-16px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+
+        .bc-sep-enter {
+          animation: bcFadeInLeftSep 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          will-change: transform, opacity;
+        }
+
+        .bc-item-enter {
+          animation: bcFadeInLeftItem 240ms cubic-bezier(0.16, 1, 0.3, 1) 120ms both;
+          will-change: transform, opacity;
+        }
       </style>
       
       <div className="flex items-center gap-2 max-w-full">
@@ -305,6 +400,7 @@ export const Breadcrumbs = ({ items, onNavigate, isLiquid, showBackButton = true
             const isDeletingCurrent = item.id === activeDeletingId;
             const isCurrentCursorVisible = isDeletingCurrent && showCursor;
             const isLastItem = index === displayItems.length - 1;
+            const isEntering = enteringItemIds.has(item.id);
 
             return html`
               <${React.Fragment} key=${`bc-group-${item.id || index}`}>
@@ -312,7 +408,7 @@ export const Breadcrumbs = ({ items, onNavigate, isLiquid, showBackButton = true
                   key=${`sep-${item.id || index}`} 
                   className=${`w-3 h-3 text-slate-400 flex-shrink-0 mx-1 transition-all duration-150 ease-out ${
                     item.arrowFading ? 'opacity-0 -translate-x-2.5 scale-75' : 'opacity-100 translate-x-0 scale-100'
-                  }`} 
+                  } ${isEntering ? 'bc-sep-enter' : ''}`} 
                 />
                 <button
                   key=${`btn-${item.id || index}`}
@@ -320,7 +416,9 @@ export const Breadcrumbs = ({ items, onNavigate, isLiquid, showBackButton = true
                   disabled=${isAnimating || isLastItem}
                   className=${`flex-shrink-0 inline-flex items-center hover:text-indigo-700 font-bold transition-colors px-3 py-1.5 rounded-full border border-transparent text-slate-600 ${
                     isLastItem ? 'cursor-default text-indigo-700' : 'cursor-pointer'
-                  } ${isLiquid ? 'hover:bg-white/60 hover:shadow-sm hover:border-white/50' : 'hover:bg-slate-50 hover:border-slate-100'}`}
+                  } ${isLiquid ? 'hover:bg-white/60 hover:shadow-sm hover:border-white/50' : 'hover:bg-slate-50 hover:border-slate-100'} ${
+                    isEntering ? 'bc-item-enter' : ''
+                  }`}
                 >
                   <span className="truncate max-w-[260px] md:max-w-[400px]">
                     ${item.displayTitle !== undefined ? item.displayTitle : item.title}

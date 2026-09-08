@@ -1142,11 +1142,6 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
                 <div className="h-4 bg-slate-200 rounded-full w-4/6"></div>
               </div>
             </div>
-            
-            <div className="flex items-center gap-4 py-4">
-              <div className="w-10 h-10 rounded-full bg-slate-200 animate-spin border-2 border-slate-200 border-t-indigo-500"></div>
-              <span className="text-sm font-sans font-bold text-slate-400">Đang chuẩn bị nội dung...</span>
-            </div>
           </div>
         `;
     }
@@ -1173,13 +1168,17 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
                     `}
                   </div>
                   <div key="title-box" className="relative flex items-center">
-                    <h1 
-                      ref=${marqueeTitleRef}
-                      className=${`font-serif font-bold text-slate-900 leading-tight drop-shadow-sm whitespace-normal ${isAppMode ? 'text-2xl md:text-3xl' : (isMultiLine ? 'text-xl md:text-3xl' : 'text-2xl md:text-4xl')}`}
-                      style=${selectNoneStyle}
-                    >
-                      ${currentNode.title}
-                    </h1>
+                    ${hasMath && !isMathRendered ? html`
+                      <div key="title-skeleton" className="h-8 md:h-10 bg-slate-200/80 rounded-2xl w-48 md:w-80 animate-pulse my-1"></div>
+                    ` : html`
+                      <h1 
+                        ref=${marqueeTitleRef}
+                        className=${`font-serif font-bold text-slate-900 leading-tight drop-shadow-sm whitespace-normal ${isAppMode ? 'text-2xl md:text-3xl' : (isMultiLine ? 'text-xl md:text-3xl' : 'text-2xl md:text-4xl')}`}
+                        style=${selectNoneStyle}
+                      >
+                        ${currentNode.title}
+                      </h1>
+                    `}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0 ml-4">
@@ -1214,11 +1213,6 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
                   <div className=${`relative flex flex-col min-h-[500px] ${isLiquid ? 'bg-white/30' : 'bg-white'}`}>
                       ${hasMath && !isMathRendered && html`
                         <div key="math-loading-state" className="p-6 md:p-14 space-y-6 w-full animate-in fade-in duration-200">
-                          <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-indigo-50/90 border border-indigo-100/80 text-indigo-700 w-fit shadow-xs">
-                            <${Loader2} size=${18} className="animate-spin text-indigo-600 flex-shrink-0" />
-                            <span className="text-xs md:text-sm font-bold tracking-wide">Đang nạp và kết xuất công thức toán học...</span>
-                          </div>
-
                           <div className="space-y-4 animate-pulse pt-2">
                             <div className="h-5 bg-slate-200/80 rounded-full w-3/4"></div>
                             <div className="space-y-2.5">
