@@ -1132,10 +1132,14 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     }
   };
 
-  const handleNavigate = (id) => {
+  const handleNavigate = (id, targetNodeParam = null) => {
     if (isSorting) return;
     try {
       sessionStorage.setItem('nav_dir', 'right');
+      const targetNode = targetNodeParam || (Array.isArray(allNodes) ? allNodes.find(n => n.id === id) : null);
+      if (id && targetNode) {
+        sessionStorage.setItem(`node_type_${id}`, targetNode.type);
+      }
     } catch {}
     const prefix = mode === 'edit' ? '/edit' : '/view';
     let path = id ? `${prefix}/${id}` : prefix;
@@ -1223,40 +1227,167 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
   };
   const allowedChildTypes = ALLOWED_CHILDREN[currentNode ? currentNode.type : NodeType.ROOT] || [];
 
+  const renderCategorySkeleton = () => {
+    const headerAppClasses = isAppMode 
+      ? (!nodeId 
+          ? `p-3 rounded-full text-center items-center justify-center` 
+          : `p-6 border-l-[4px] border-l-indigo-500 rounded-tl-none rounded-bl-none rounded-tr-[35px] rounded-br-[35px] text-left items-start justify-start`)
+      : '';
+
+    return html`
+      <div>
+        <header key="category-skeleton-header" className=${`mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6 ${isAppMode ? `mt-6 border ${headerAppClasses} ${isLiquid ? 'bg-white/40 backdrop-blur-sm border-white/20 shadow-sm' : 'bg-white border-slate-200 shadow-sm'}` : 'px-2'}`}>
+          <div key="category-skeleton-title-container" className=${isAppMode ? 'w-full flex items-center justify-between' : 'flex items-end justify-between w-full'}>
+            <div>
+              ${!isAppMode && html`
+                <div key="category-skeleton-label" className="text-sm font-bold text-indigo-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+                  <div className="w-8 h-1 bg-indigo-500 rounded-full"></div>
+                  <div className="h-4 w-20 bg-slate-200/80 rounded-full animate-pulse"></div>
+                </div>
+              `}
+              <div key="category-skeleton-title" className="relative flex items-center my-1">
+                <div className=${`${isAppMode ? 'h-7 md:h-8 w-44 md:w-60' : 'h-8 md:h-12 w-60 md:w-80'} bg-slate-200/80 rounded-2xl animate-pulse`}></div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <!-- Danh sách mục: Mẫu cỡ 3 mục đúng vị trí, không lệch -->
+        <div key="category-skeleton-list" className="grid grid-cols-1 gap-4">
+          ${[0, 1, 2].map((idx) => {
+            const titleWidth = idx === 0 
+              ? (isAppMode ? 'w-48' : 'w-48 md:w-64') 
+              : (idx === 1 ? (isAppMode ? 'w-36' : 'w-40 md:w-52') : (isAppMode ? 'w-52' : 'w-56 md:w-72'));
+
+            return html`
+              <div 
+                key=${`category-skeleton-item-${idx}`}
+                className=${`flex items-center justify-between ${
+                  isAppMode 
+                    ? `rounded-xl py-5 px-5 border ${isLiquid ? 'bg-white/40 backdrop-blur-sm border-white/20' : 'bg-white border-slate-200 shadow-sm'}` 
+                    : `relative rounded-3xl p-6 border overflow-hidden ${isLiquid ? 'backdrop-blur-md bg-white/40 border-white/60 shadow-glass' : 'bg-white border-slate-200 shadow-sm'}`
+                }`}
+              >
+                <div className="relative flex items-center gap-5 flex-1 overflow-hidden z-10">
+                  <!-- Icon Bubble Skeleton -->
+                  <div className=${`flex-shrink-0 animate-pulse ${
+                    isAppMode 
+                      ? 'w-6 h-6 rounded-lg bg-indigo-100/60' 
+                      : 'p-4 rounded-2xl shadow-inner bg-indigo-100/50 border border-indigo-200/50 w-[58px] h-[58px]'
+                  }`}></div>
+                  
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <!-- Label Skeleton (Web mode) -->
+                    ${!isAppMode && html`
+                      <div className="h-3 w-16 bg-slate-200/70 rounded-full animate-pulse"></div>
+                    `}
+                    
+                    <!-- Title Skeleton -->
+                    <div className=${`h-5 md:h-6 bg-slate-200/80 rounded-lg animate-pulse ${titleWidth}`}></div>
+                  </div>
+                </div>
+
+                <!-- Chevron (Web mode) -->
+                ${!isAppMode && html`
+                  <div className="w-10 h-10 rounded-full bg-slate-100/60 flex items-center justify-center animate-pulse ml-2 flex-shrink-0">
+                    <div className="w-4 h-4 bg-slate-200/60 rounded-full"></div>
+                  </div>
+                `}
+              </div>
+            `;
+          })}
+        </div>
+      </div>
+    `;
+  };
+
+  const renderLessonSkeleton = () => {
+    const containerStyle = isLiquid 
+      ? 'bg-white/50 backdrop-blur-xl rounded-[2.5rem] shadow-glass border border-white/50 ring-1 ring-white/60'
+      : 'bg-white rounded-3xl shadow-sm border border-slate-200';
+    
+    const headerStyle = isLiquid
+      ? 'border-b border-white/30 bg-white/40 backdrop-blur-md sticky top-0'
+      : 'border-b border-slate-100 bg-white sticky top-0';
+
+    return html`
+      <div key="lesson-skeleton-wrapper" className="w-full">
+        <div className=${`${containerStyle} overflow-hidden min-h-[700px] flex flex-col relative`}>
+          <!-- Header bài học: để trống phần tựa bài (skeleton tựa bài giữ chỗ) -->
+          <div className=${`px-6 md:px-12 py-6 md:py-8 flex justify-between items-start z-20 ${headerStyle}`}>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 mb-3 flex-wrap">
+                ${!isAppMode && html`
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-extrabold bg-indigo-100 text-indigo-400 uppercase tracking-widest animate-pulse">
+                    ${NODE_LABELS[NodeType.LESSON]}
+                  </span>
+                `}
+              </div>
+              <div className="relative flex items-center my-1">
+                <!-- Để trống phần tựa bài (thanh skeleton tựa bài đúng vị trí) -->
+                <div className="h-8 md:h-10 bg-slate-200/80 rounded-2xl w-48 md:w-80 animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Nội dung bài học: 2 dòng đầy, 1 dòng 1/2, 1 dòng đầy, 1 dòng 2/3, .... (tổng 6 dòng có cả dòng chưa đầy và dòng đầy) -->
+          <div className=${`relative flex flex-col min-h-[500px] ${isLiquid ? 'bg-white/30' : 'bg-white'}`}>
+            <div className="p-6 md:p-14 space-y-5 w-full">
+              <!-- Dòng 1: Đầy -->
+              <div className="h-5 bg-slate-200/80 rounded-md w-full animate-pulse"></div>
+              <!-- Dòng 2: Đầy -->
+              <div className="h-5 bg-slate-200/80 rounded-md w-full animate-pulse"></div>
+              <!-- Dòng 3: 1/2 -->
+              <div className="h-5 bg-slate-200/80 rounded-md w-1/2 animate-pulse"></div>
+              <!-- Dòng 4: Đầy -->
+              <div className="h-5 bg-slate-200/80 rounded-md w-full animate-pulse"></div>
+              <!-- Dòng 5: 2/3 -->
+              <div className="h-5 bg-slate-200/80 rounded-md w-2/3 animate-pulse"></div>
+              <!-- Dòng 6: Chưa đầy (4/5) - tổng đúng 6 dòng cả chưa đầy và đầy -->
+              <div className="h-5 bg-slate-200/80 rounded-md w-4/5 animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Nút quay lại skeleton -->
+        <div className="mt-8 px-4">
+          <div className="h-10 w-28 bg-slate-200/80 rounded-2xl animate-pulse"></div>
+        </div>
+      </div>
+    `;
+  };
+
   const renderMainContent = () => {
     if (error) {
       return html`<${StatusPage} type=${error} />`;
     }
 
-    if (loading && (!Array.isArray(allNodes) || allNodes.length === 0)) {
-        return html`
-          <div className="w-full max-w-5xl mx-auto space-y-6 animate-pulse p-4">
-            <div className="space-y-3">
-              <div className="h-4 bg-slate-200 rounded-full w-24"></div>
-              <div className="h-8 bg-slate-200 rounded-full w-2/3 md:w-1/3"></div>
-            </div>
-            
-            <div className=${`p-6 md:p-10 rounded-[2rem] border ${isLiquid ? 'bg-white/30 border-white/40 shadow-glass' : 'bg-white border-slate-200 shadow-sm'} space-y-6`}>
-              <div className="h-6 bg-slate-200 rounded-full w-3/4"></div>
-              <div className="space-y-3">
-                <div className="h-4 bg-slate-200 rounded-full w-full"></div>
-                <div className="h-4 bg-slate-200 rounded-full w-5/6"></div>
-                <div className="h-4 bg-slate-200 rounded-full w-4/6"></div>
-              </div>
-              
-              <div className="pt-6 space-y-4">
-                <div className="h-4 bg-slate-200 rounded-full w-full"></div>
-                <div className="h-4 bg-slate-200 rounded-full w-11/12"></div>
-                <div className="h-4 bg-slate-200 rounded-full w-3/4"></div>
-              </div>
+    const checkIsLesson = () => {
+      if (!nodeId) return false;
+      if (currentNode) return currentNode.type === NodeType.LESSON;
+      if (Array.isArray(allNodes) && allNodes.length > 0) {
+        const found = allNodes.find(n => n.id === nodeId);
+        if (found) return found.type === NodeType.LESSON;
+      }
+      try {
+        const sessionType = sessionStorage.getItem(`node_type_${nodeId}`);
+        if (sessionType) return sessionType === NodeType.LESSON;
+      } catch {}
+      try {
+        const cached = localStorage.getItem('cached_nodes');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed)) {
+            const node = parsed.find(n => n.id === nodeId);
+            if (node) return node.type === NodeType.LESSON;
+          }
+        }
+      } catch {}
+      return false;
+    };
 
-              <div className="pt-6 space-y-4">
-                <div className="h-4 bg-slate-200 rounded-full w-5/6"></div>
-                <div className="h-4 bg-slate-200 rounded-full w-4/6"></div>
-              </div>
-            </div>
-          </div>
-        `;
+    if (loading && (!Array.isArray(allNodes) || allNodes.length === 0 || (!currentNode && nodeId))) {
+      return checkIsLesson() ? renderLessonSkeleton() : renderCategorySkeleton();
     }
 
     if (currentNode?.type === NodeType.LESSON) {
@@ -1333,7 +1464,16 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
                   </div>
                 ` : html`
                   <div className=${`relative flex flex-col min-h-[500px] ${isLiquid ? 'bg-white/30' : 'bg-white'}`}>
-                      ${hasMath && !isMathRendered && html`
+                      ${(!displayLessonContent && loading) ? html`
+                        <div key="lesson-empty-loading-skeleton" className="p-6 md:p-14 space-y-5 w-full">
+                          <div className="h-5 bg-slate-200/80 rounded-md w-full animate-pulse"></div>
+                          <div className="h-5 bg-slate-200/80 rounded-md w-full animate-pulse"></div>
+                          <div className="h-5 bg-slate-200/80 rounded-md w-1/2 animate-pulse"></div>
+                          <div className="h-5 bg-slate-200/80 rounded-md w-full animate-pulse"></div>
+                          <div className="h-5 bg-slate-200/80 rounded-md w-2/3 animate-pulse"></div>
+                          <div className="h-5 bg-slate-200/80 rounded-md w-4/5 animate-pulse"></div>
+                        </div>
+                      ` : (hasMath && !isMathRendered ? html`
                         <div 
                           key="math-skeleton-content" 
                           style=${{
@@ -1343,14 +1483,14 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
                           className="lesson-content-skeleton p-6 md:p-14 prose prose-slate max-w-none leading-loose select-none pointer-events-none relative"
                           dangerouslySetInnerHTML=${{ __html: skeletonLessonContent }}
                         ></div>
-                      `}
+                      ` : null)}
                       <div 
                         ref=${lessonContentRef}
                         style=${{
                           '--lesson-font-size': `${viewFontSize}pt`,
                           fontSize: `${viewFontSize}pt`
                         }}
-                        className=${`lesson-content p-6 md:p-14 prose prose-slate max-w-none leading-loose prose-a:text-indigo-600 prose-img:rounded-2xl prose-img:shadow-xl select-text transition-opacity duration-200 ${hasMath && !isMathRendered ? 'invisible opacity-0 pointer-events-none absolute inset-x-0 top-0 -z-10 max-h-0 overflow-hidden' : 'visible opacity-100 relative'}`}
+                        className=${`lesson-content p-6 md:p-14 prose prose-slate max-w-none leading-loose prose-a:text-indigo-600 prose-img:rounded-2xl prose-img:shadow-xl select-text transition-opacity duration-200 ${(!displayLessonContent && loading) || (hasMath && !isMathRendered) ? 'invisible opacity-0 pointer-events-none absolute inset-x-0 top-0 -z-10 max-h-0 overflow-hidden' : 'visible opacity-100 relative'}`}
                         dangerouslySetInnerHTML=${{ __html: displayLessonContent || '<div class="flex flex-col items-center justify-center py-32 opacity-40"><div class="w-16 h-16 bg-white/50 rounded-full mb-4 shadow-sm"></div><p class="font-serif italic text-xl text-slate-600">Chưa có nội dung bài học.</p></div>' }}
                       ></div>
                   </div>
@@ -1468,7 +1608,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
               isSorting=${isSorting}
               isAppMode=${isAppMode}
               uiStyle=${isLiquid ? 'liquid' : 'normal'}
-              onClick=${() => handleNavigate(node.id)}
+              onClick=${() => handleNavigate(node.id, node)}
               onEdit=${handleEditTitle}
               onDelete=${handleDelete}
               onStartMove=${handleStartMove}
