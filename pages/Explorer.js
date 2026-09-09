@@ -516,7 +516,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
       if (hasKatex && hasRender) {
         isRendering = true;
         const renderFunc = window.renderMathInElement || renderMathInElement;
-        console.log('KaTeX: Rendering content in element:', contentElement);
+        console.log('KaTeX: Rendering content in element');
         try {
           renderFunc(contentElement, {
             delimiters: [
@@ -1136,8 +1136,10 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     if (isSorting) return;
     try {
       sessionStorage.setItem('nav_dir', 'right');
-      const targetNode = targetNodeParam || (Array.isArray(allNodes) ? allNodes.find(n => n.id === id) : null);
-      if (id && targetNode) {
+      const targetNode = (targetNodeParam && typeof targetNodeParam === 'object' && typeof targetNodeParam.type === 'string') 
+        ? targetNodeParam 
+        : (Array.isArray(allNodes) ? allNodes.find(n => n.id === id) : null);
+      if (id && targetNode && typeof targetNode.type === 'string') {
         sessionStorage.setItem(`node_type_${id}`, targetNode.type);
       }
     } catch {}
@@ -1240,19 +1242,18 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
           <div key="category-skeleton-title-container" className=${isAppMode ? 'w-full flex items-center justify-between' : 'flex items-end justify-between w-full'}>
             <div>
               ${!isAppMode && html`
-                <div key="category-skeleton-label" className="text-sm font-bold text-indigo-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+                <h2 key="category-skeleton-label" className="text-sm font-bold text-indigo-500 uppercase tracking-widest mb-2 flex items-center gap-2">
                   <div className="w-8 h-1 bg-indigo-500 rounded-full"></div>
-                  <div className="h-4 w-20 bg-slate-200/80 rounded-full animate-pulse"></div>
-                </div>
+                  <span className="inline-block h-4 w-20 bg-slate-200/80 rounded-full animate-pulse align-middle"></span>
+                </h2>
               `}
-              <div key="category-skeleton-title" className="relative flex items-center my-1">
-                <div className=${`${isAppMode ? 'h-7 md:h-8 w-44 md:w-60' : 'h-8 md:h-12 w-60 md:w-80'} bg-slate-200/80 rounded-2xl animate-pulse`}></div>
-              </div>
+              <h1 key="category-skeleton-title" className=${`${isAppMode ? 'text-xl md:text-2xl' : 'text-3xl md:text-5xl'} font-sans font-bold leading-tight`}>
+                <span className=${`inline-block ${isAppMode ? 'h-7 md:h-8 w-44 md:w-60' : 'h-8 md:h-12 w-60 md:w-80'} bg-slate-200/80 rounded-2xl animate-pulse align-middle`}></span>
+              </h1>
             </div>
           </div>
         </header>
 
-        <!-- Danh sách mục: Mẫu cỡ 3 mục đúng vị trí, không lệch -->
         <div key="category-skeleton-list" className="grid grid-cols-1 gap-4">
           ${[0, 1, 2].map((idx) => {
             const titleWidth = idx === 0 
@@ -1269,25 +1270,25 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
                 }`}
               >
                 <div className="relative flex items-center gap-5 flex-1 overflow-hidden z-10">
-                  <!-- Icon Bubble Skeleton -->
                   <div className=${`flex-shrink-0 animate-pulse ${
                     isAppMode 
-                      ? 'w-6 h-6 rounded-lg bg-indigo-100/60' 
+                      ? 'w-6 h-6 rounded-lg bg-indigo-100/70' 
                       : 'p-4 rounded-2xl shadow-inner bg-indigo-100/50 border border-indigo-200/50 w-[58px] h-[58px]'
                   }`}></div>
                   
                   <div className="min-w-0 flex-1 space-y-2">
-                    <!-- Label Skeleton (Web mode) -->
                     ${!isAppMode && html`
-                      <div className="h-3 w-16 bg-slate-200/70 rounded-full animate-pulse"></div>
+                      <div>
+                        <span className="inline-block h-3 w-16 bg-slate-200/70 rounded-full animate-pulse align-middle"></span>
+                      </div>
                     `}
                     
-                    <!-- Title Skeleton -->
-                    <div className=${`h-5 md:h-6 bg-slate-200/80 rounded-lg animate-pulse ${titleWidth}`}></div>
+                    <h3 className=${`font-sans font-bold ${isAppMode ? 'text-base md:text-lg' : 'text-lg md:text-xl'} leading-tight`}>
+                      <span className=${`inline-block h-[1.25em] bg-slate-200/80 rounded-lg animate-pulse align-middle ${titleWidth}`}></span>
+                    </h3>
                   </div>
                 </div>
 
-                <!-- Chevron (Web mode) -->
                 ${!isAppMode && html`
                   <div className="w-10 h-10 rounded-full bg-slate-100/60 flex items-center justify-center animate-pulse ml-2 flex-shrink-0">
                     <div className="w-4 h-4 bg-slate-200/60 rounded-full"></div>
@@ -1313,7 +1314,6 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     return html`
       <div key="lesson-skeleton-wrapper" className="w-full">
         <div className=${`${containerStyle} overflow-hidden min-h-[700px] flex flex-col relative`}>
-          <!-- Header bài học: để trống phần tựa bài (skeleton tựa bài giữ chỗ) -->
           <div className=${`px-6 md:px-12 py-6 md:py-8 flex justify-between items-start z-20 ${headerStyle}`}>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-3 flex-wrap">
@@ -1323,33 +1323,24 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
                   </span>
                 `}
               </div>
-              <div className="relative flex items-center my-1">
-                <!-- Để trống phần tựa bài (thanh skeleton tựa bài đúng vị trí) -->
-                <div className="h-8 md:h-10 bg-slate-200/80 rounded-2xl w-48 md:w-80 animate-pulse"></div>
-              </div>
+              <h1 className="text-2xl md:text-4xl font-serif font-bold leading-tight">
+                <span className="inline-block h-[1.2em] w-48 md:w-80 bg-slate-200/80 rounded-2xl animate-pulse align-middle"></span>
+              </h1>
             </div>
           </div>
 
-          <!-- Nội dung bài học: 2 dòng đầy, 1 dòng 1/2, 1 dòng đầy, 1 dòng 2/3, .... (tổng 6 dòng có cả dòng chưa đầy và dòng đầy) -->
           <div className=${`relative flex flex-col min-h-[500px] ${isLiquid ? 'bg-white/30' : 'bg-white'}`}>
             <div className="p-6 md:p-14 space-y-5 w-full">
-              <!-- Dòng 1: Đầy -->
               <div className="h-5 bg-slate-200/80 rounded-md w-full animate-pulse"></div>
-              <!-- Dòng 2: Đầy -->
               <div className="h-5 bg-slate-200/80 rounded-md w-full animate-pulse"></div>
-              <!-- Dòng 3: 1/2 -->
               <div className="h-5 bg-slate-200/80 rounded-md w-1/2 animate-pulse"></div>
-              <!-- Dòng 4: Đầy -->
               <div className="h-5 bg-slate-200/80 rounded-md w-full animate-pulse"></div>
-              <!-- Dòng 5: 2/3 -->
               <div className="h-5 bg-slate-200/80 rounded-md w-2/3 animate-pulse"></div>
-              <!-- Dòng 6: Chưa đầy (4/5) - tổng đúng 6 dòng cả chưa đầy và đầy -->
               <div className="h-5 bg-slate-200/80 rounded-md w-4/5 animate-pulse"></div>
             </div>
           </div>
         </div>
 
-        <!-- Nút quay lại skeleton -->
         <div className="mt-8 px-4">
           <div className="h-10 w-28 bg-slate-200/80 rounded-2xl animate-pulse"></div>
         </div>
@@ -1621,12 +1612,10 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
 
   return html`
     <div className="w-full mx-auto relative min-h-screen">
-      <!-- Content -->
       <div className="px-2 pb-20">
          ${renderMainContent()}
       </div>
 
-      <!-- Floating Zoom Controls -->
       ${canShowZoom && html`
         <div key="zoom-controls" className="fixed bottom-8 right-6 flex flex-col gap-2 z-40 animate-in slide-in-from-right-10">
             <button key="btn-zoom-in" title="Phóng to cỡ chữ (+2pt)" onClick=${increaseFontSize} className=${`p-3 border text-indigo-600 rounded-2xl transition-all hover:scale-110 active:scale-95 ${isLiquid ? 'bg-white/80 backdrop-blur-md border-white/60 shadow-glass hover:shadow-glass-hover' : 'bg-white border-slate-200 shadow-md hover:bg-slate-50'}`}><${Plus} size=${24} /></button>
