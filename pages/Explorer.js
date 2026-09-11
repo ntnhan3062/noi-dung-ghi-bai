@@ -372,14 +372,16 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     return path;
   }, [currentNode, allNodes]);
 
-  // Check Zoom availability: Must be LESSON type, math must be finished rendering, AND enabled in config
-  const canShowZoom = currentNode?.type === NodeType.LESSON && (!hasMath || isMathRendered) && (uiConfig?.zoom ? (
+  // Check Zoom availability: Must be LESSON type, and enabled in config
+  const isZoomEnabledForMode = currentNode?.type === NodeType.LESSON && (uiConfig?.zoom ? (
       (uiConfig.zoom.enabled !== false) && (
         (isAppMode && uiConfig.zoom.app) ||
         (mode === 'edit' && uiConfig.zoom.edit) ||
         (mode === 'view' && !isAppMode && uiConfig.zoom.view)
       )
-  ) : true);
+  ) : false);
+
+  const canShowZoom = isZoomEnabledForMode && (!hasMath || isMathRendered);
 
   useEffect(() => { if (!loading) updateBreadcrumbs(calculatedBreadcrumbs); }, [loading, calculatedBreadcrumbs, updateBreadcrumbs]);
 
@@ -674,15 +676,22 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     };
   }, [currentNode?.id, currentNode?.content, isEditingContent, viewFontSize, nodeId, hasMath]);
 
-  // Đồng bộ kích thước font chữ cho nội dung bài học (.lesson-content)
+  // Đồng bộ kích thước font chữ cho nội dung bài học (.lesson-content) khi có bật hiển thị Zoom
   useEffect(() => {
     if (lessonContentRef.current) {
-      lessonContentRef.current.style.setProperty('--lesson-font-size', `${viewFontSize}pt`);
-      lessonContentRef.current.style.setProperty('--lesson-scale', `${viewFontSize / 18}`);
-      lessonContentRef.current.style.setProperty('zoom', `${viewFontSize / 18}`);
-      lessonContentRef.current.style.setProperty('font-size', `${viewFontSize}pt`);
+      if (isZoomEnabledForMode) {
+        lessonContentRef.current.style.setProperty('--lesson-font-size', `${viewFontSize}pt`);
+        lessonContentRef.current.style.setProperty('--lesson-scale', `${viewFontSize / 18}`);
+        lessonContentRef.current.style.setProperty('zoom', `${viewFontSize / 18}`);
+        lessonContentRef.current.style.setProperty('font-size', `${viewFontSize}pt`);
+      } else {
+        lessonContentRef.current.style.removeProperty('--lesson-font-size');
+        lessonContentRef.current.style.removeProperty('--lesson-scale');
+        lessonContentRef.current.style.removeProperty('zoom');
+        lessonContentRef.current.style.removeProperty('font-size');
+      }
     }
-  }, [viewFontSize, currentNode?.id, currentNode?.content, isEditingContent]);
+  }, [viewFontSize, currentNode?.id, currentNode?.content, isEditingContent, isZoomEnabledForMode]);
 
   useEffect(() => {
     if (currentNode?.type === NodeType.LESSON && currentNode?.id) {
@@ -1413,7 +1422,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
           </div>
 
           <div className=${`relative flex flex-col min-h-[500px] ${isLiquid ? 'bg-white/30' : 'bg-white'}`}>
-            <div className="p-6 md:p-14 space-y-5 w-full">
+            <div className="px-6 md:px-12 pt-6 md:pt-8 pb-8 md:pb-12 space-y-5 w-full">
               <div className="h-5 bg-slate-200/80 rounded-md w-full animate-pulse"></div>
               <div className="h-5 bg-slate-200/80 rounded-md w-full animate-pulse"></div>
               <div className="h-5 bg-slate-200/80 rounded-md w-1/2 animate-pulse"></div>
@@ -1539,7 +1548,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
                 ` : html`
                   <div className=${`relative flex flex-col min-h-[500px] ${isLiquid ? 'bg-white/30' : 'bg-white'}`}>
                       ${(!displayLessonContent && loading) ? html`
-                        <div key="lesson-empty-loading-skeleton" className="p-6 md:p-14 space-y-5 w-full">
+                        <div key="lesson-empty-loading-skeleton" className="px-6 md:px-12 pt-6 md:pt-8 pb-8 md:pb-12 space-y-5 w-full">
                           <div className="h-5 bg-slate-200/80 rounded-md w-full animate-pulse"></div>
                           <div className="h-5 bg-slate-200/80 rounded-md w-full animate-pulse"></div>
                           <div className="h-5 bg-slate-200/80 rounded-md w-1/2 animate-pulse"></div>
@@ -1550,25 +1559,25 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
                       ` : (hasMath && !isMathRendered ? html`
                         <div 
                           key="math-skeleton-content" 
-                          style=${{
+                          style=${isZoomEnabledForMode ? {
                             '--lesson-font-size': `${viewFontSize}pt`,
                             '--lesson-scale': `${viewFontSize / 18}`,
                             zoom: `${viewFontSize / 18}`,
                             fontSize: `${viewFontSize}pt`
-                          }}
-                          className="lesson-content-skeleton p-6 md:p-14 prose prose-slate max-w-none leading-relaxed select-none pointer-events-none relative"
+                          } : {}}
+                          className=${`lesson-content-skeleton ${isZoomEnabledForMode ? 'has-zoom' : ''} px-6 md:px-12 pt-6 md:pt-8 pb-8 md:pb-12 prose prose-slate max-w-none leading-relaxed select-none pointer-events-none relative`}
                           dangerouslySetInnerHTML=${{ __html: skeletonLessonContent }}
                         ></div>
                       ` : null)}
                       <div 
                         ref=${lessonContentRef}
-                        style=${{
+                        style=${isZoomEnabledForMode ? {
                           '--lesson-font-size': `${viewFontSize}pt`,
                           '--lesson-scale': `${viewFontSize / 18}`,
                           zoom: `${viewFontSize / 18}`,
                           fontSize: `${viewFontSize}pt`
-                        }}
-                        className=${`lesson-content p-6 md:p-14 prose prose-slate max-w-none leading-relaxed prose-a:text-indigo-600 prose-img:rounded-2xl prose-img:shadow-xl select-text transition-opacity duration-200 ${(!displayLessonContent && loading) || (hasMath && !isMathRendered) ? 'invisible opacity-0 pointer-events-none absolute inset-x-0 top-0 -z-10 max-h-0 overflow-hidden' : 'visible opacity-100 relative'}`}
+                        } : {}}
+                        className=${`lesson-content ${isZoomEnabledForMode ? 'has-zoom' : ''} px-6 md:px-12 pt-6 md:pt-8 pb-8 md:pb-12 prose prose-slate max-w-none leading-relaxed prose-a:text-indigo-600 prose-img:rounded-2xl prose-img:shadow-xl select-text transition-opacity duration-200 ${(!displayLessonContent && loading) || (hasMath && !isMathRendered) ? 'invisible opacity-0 pointer-events-none absolute inset-x-0 top-0 -z-10 max-h-0 overflow-hidden' : 'visible opacity-100 relative'}`}
                         dangerouslySetInnerHTML=${{ __html: displayLessonContent || '<div class="flex flex-col items-center justify-center py-32 opacity-40"><div class="w-16 h-16 bg-white/50 rounded-full mb-4 shadow-sm"></div><p class="font-serif italic text-xl text-slate-600">Chưa có nội dung bài học.</p></div>' }}
                       ></div>
                   </div>

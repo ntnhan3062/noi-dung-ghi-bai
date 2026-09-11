@@ -271,11 +271,22 @@
       /* Điều chỉnh cỡ chữ và giãn dòng cho nội dung bài học */
       .lesson-content,
       .lesson-content-skeleton {
+        line-height: 1.6;
+      }
+
+      /* Chỉ áp dụng cỡ chữ và zoom khi có bật tính năng Zoom */
+      .lesson-content.has-zoom,
+      .lesson-content-skeleton.has-zoom {
         --lesson-font-size: 18pt;
         --lesson-scale: 1;
         font-size: var(--lesson-font-size, 18pt);
-        line-height: 1.6;
         zoom: var(--lesson-scale, 1);
+      }
+
+      /* Đảm bảo margin-top của nội dung bằng margin-bottom của tựa bài, không bị dồn margin của phần tử con đầu tiên */
+      .lesson-content > :first-child,
+      .lesson-content-skeleton > :first-child {
+        margin-top: 0 !important;
       }
       
       .lesson-content p,
