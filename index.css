@@ -34,57 +34,51 @@ html, body {
   line-height: 1.75;
 }
 
-/* Zoom chữ bằng nút zoom cho nội dung bài học */
-.lesson-content {
-  --lesson-font-size: 16pt;
-  font-size: var(--lesson-font-size, 16pt) !important;
-  line-height: 1.8 !important;
+/* Điều chỉnh cỡ chữ và giãn dòng cho nội dung bài học */
+.lesson-content,
+.lesson-content-skeleton {
+  --lesson-font-size: 18pt;
+  --lesson-scale: 1;
+  font-size: var(--lesson-font-size, 18pt);
+  line-height: 1.6;
+  zoom: var(--lesson-scale, 1);
 }
 
-.lesson-content,
 .lesson-content p,
 .lesson-content div:not(.math-tex):not(.katex-display),
 .lesson-content li,
 .lesson-content td,
-.lesson-content th,
-.lesson-content a,
-.lesson-content b,
-.lesson-content strong,
-.lesson-content i,
-.lesson-content em,
-.lesson-content u,
-.lesson-content s,
-.lesson-content span:not(.katex):not(.katex *):not(.math-tex) {
-  font-size: var(--lesson-font-size, 16pt) !important;
-  line-height: 1.8 !important;
+.lesson-content th {
+  line-height: inherit;
 }
 
-.lesson-content h1, .lesson-content h1 *:not(.katex):not(.katex *) {
-  font-size: calc(var(--lesson-font-size, 16pt) * 1.6) !important;
-  line-height: 1.3 !important;
+.lesson-content h1:not([style*="font-size"]) {
+  font-size: 1.6em;
+  line-height: 1.3;
 }
 
-.lesson-content h2, .lesson-content h2 *:not(.katex):not(.katex *) {
-  font-size: calc(var(--lesson-font-size, 16pt) * 1.35) !important;
-  line-height: 1.4 !important;
+.lesson-content h2:not([style*="font-size"]) {
+  font-size: 1.35em;
+  line-height: 1.35;
 }
 
-.lesson-content h3, .lesson-content h3 *:not(.katex):not(.katex *) {
-  font-size: calc(var(--lesson-font-size, 16pt) * 1.2) !important;
-  line-height: 1.4 !important;
+.lesson-content h3:not([style*="font-size"]) {
+  font-size: 1.2em;
+  line-height: 1.4;
 }
 
-.lesson-content h4, .lesson-content h4 *:not(.katex):not(.katex *) {
-  font-size: calc(var(--lesson-font-size, 16pt) * 1.1) !important;
-  line-height: 1.5 !important;
+.lesson-content h4:not([style*="font-size"]) {
+  font-size: 1.1em;
+  line-height: 1.4;
 }
 
-.lesson-content pre, .lesson-content code {
-  font-size: calc(var(--lesson-font-size, 16pt) * 0.9) !important;
+.lesson-content pre:not([style*="font-size"]), 
+.lesson-content code:not([style*="font-size"]) {
+  font-size: 0.9em;
 }
 
 .lesson-content .math-tex {
-  font-size: var(--lesson-font-size, 16pt) !important;
+  font-size: inherit;
 }
 
 .prose h1 {
@@ -107,11 +101,55 @@ input, textarea, .select-text {
 }
 
 .tox-tinymce {
-  border-radius: 1.5rem !important;
+  border-radius: 0 0 1.5rem 1.5rem !important;
   border: 1px solid rgba(255, 255, 255, 0.6) !important;
   background-color: rgba(255, 255, 255, 0.4) !important;
   backdrop-filter: blur(16px) !important;
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1) !important;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.tox-tinymce.tox-fullscreen {
+  border-radius: 0 !important;
+}
+
+.tox-tinymce .tox-editor-container {
+  flex: 1 1 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+}
+
+.tox-tinymce .tox-sidebar-wrap {
+  flex: 1 1 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+}
+
+.tox-tinymce .tox-edit-area {
+  flex: 1 1 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+}
+
+.tox-tinymce .tox-edit-area iframe {
+  flex: 1 1 auto !important;
+  height: 100% !important;
+}
+
+.tox-tinymce .tox-statusbar {
+  border-radius: 0 0 1.5rem 1.5rem !important;
+}
+
+.tox-tinymce.tox-fullscreen .tox-statusbar {
+  border-radius: 0 !important;
 }
 
 /* YouTube-style Shimmer Animation for LaTeX Math */

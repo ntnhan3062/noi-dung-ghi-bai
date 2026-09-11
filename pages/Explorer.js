@@ -259,7 +259,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
         if (!isNaN(val) && val >= 8 && val <= 74) return val;
       }
     } catch {}
-    return 16;
+    return 18;
   });
   const [isMathRendered, setIsMathRendered] = useState(false);
   const [isTitleOverflowing, setIsTitleOverflowing] = useState(false);
@@ -292,6 +292,10 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
   const titleRef = useRef(null);
   const lastRenderedContentRef = useRef(null);
   const lastRenderedNodeIdRef = useRef(null);
+  const autoFullscreenTriggeredRef = useRef(false);
+  const userExitedAutoFullscreenRef = useRef(false);
+  const isManualFullscreenRef = useRef(false);
+  const isSystemTogglingFullscreenRef = useRef(false);
 
   const selectNoneStyle = {
     userSelect: 'none',
@@ -674,7 +678,9 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
   useEffect(() => {
     if (lessonContentRef.current) {
       lessonContentRef.current.style.setProperty('--lesson-font-size', `${viewFontSize}pt`);
-      lessonContentRef.current.style.setProperty('font-size', `${viewFontSize}pt`, 'important');
+      lessonContentRef.current.style.setProperty('--lesson-scale', `${viewFontSize / 18}`);
+      lessonContentRef.current.style.setProperty('zoom', `${viewFontSize / 18}`);
+      lessonContentRef.current.style.setProperty('font-size', `${viewFontSize}pt`);
     }
   }, [viewFontSize, currentNode?.id, currentNode?.content, isEditingContent]);
 
@@ -682,7 +688,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     if (currentNode?.type === NodeType.LESSON && currentNode?.id) {
         if (lastInitializedLessonId.current !== currentNode.id) {
             lastInitializedLessonId.current = currentNode.id;
-            let initialSize = 16;
+            let initialSize = 18;
             try {
               const saved = localStorage.getItem('user_view_font_size');
               if (saved) {
@@ -746,11 +752,12 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
           selector: '#editor-container',
           plugins: 'preview importcss searchreplace autolink autosave save directionality code visualblocks visualchars fullscreen image link media template codesample table charmap pagebreak nonbreaking anchor insertdatetime advlist lists wordcount help charmap quickbars emoticons',
           menubar: 'file edit view insert format tools table help',
-          toolbar: 'undo redo | bold italic underline strikethrough | math | fontfamily fontsize blocks | alignleft aligncenter alignright alignjustify | outdent indent |  numlist bullist | forecolor backcolor removeformat | pagebreak | charmap emoticons | fullscreen  preview save print | insertfile image media template link anchor codesample | ltr rtl',
-          toolbar_sticky: true,
+          toolbar: 'fullscreen | undo redo | bold italic underline strikethrough | math | fontfamily fontsize blocks custom_lineheight | alignleft aligncenter alignright alignjustify | outdent indent | numlist bullist | forecolor backcolor removeformat | pagebreak | charmap emoticons | preview save print | insertfile image media template link anchor codesample | ltr rtl',
+          font_size_formats: '8pt 9pt 10pt 11pt 12pt 13pt 14pt 15pt 16pt 17pt 18pt 20pt 22pt 24pt 26pt 28pt 32pt 36pt 40pt 48pt 60pt 72pt',
+          toolbar_sticky: false,
           autosave_interval: '30s',
-          height: '75vh', 
-          min_height: 700,
+          height: '100%', 
+          min_height: 600,
           content_css: [
             'https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&family=Lora:ital,wght@0,400;0,700;1,400&family=Tinos:wght@400;700&family=Arimo:wght@400;700&display=swap'
           ],
@@ -779,7 +786,11 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
           branding: false,
           promotion: false,
           formats: {
-            math_tex: { inline: 'span', classes: ['math-tex', 'not-prose'] }
+            math_tex: { inline: 'span', classes: ['math-tex', 'not-prose'] },
+            custom_lineheight: {
+              selector: 'p,h1,h2,h3,h4,h5,h6,div,li,td,th,blockquote,pre',
+              styles: { 'line-height': '%value' }
+            }
           },
           color_map: [
             'e03e2d', 'Đỏ mặc định',
@@ -916,39 +927,96 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
             // Removed auto-convert $...$ and $$...$$ to \(...\) and \[...\]
             // to keep raw LaTeX in the editor as requested.
 
+            // Hàm áp dụng giãn dòng
+            const applyLineHeight = (ed, val) => {
+              if (!val) return;
+              ed.undoManager.transact(() => {
+                ed.formatter.apply('custom_lineheight', { value: val });
+                const selectedNode = ed.selection.getNode();
+                if (selectedNode) {
+                  const block = ed.dom.getParent(selectedNode, ed.dom.isBlock) || selectedNode;
+                  if (block && block !== ed.getBody()) {
+                    ed.dom.setStyle(block, 'line-height', val);
+                  }
+                }
+              });
+              ed.nodeChanged();
+            };
+
+            editor.ui.registry.addIcon('custom-line-height', '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6h11M10 12h11M10 18h11M4 5v14M2 7l2-2 2 2M2 17l2 2 2-2"/></svg>');
+
+            editor.ui.registry.addMenuButton('custom_lineheight', {
+              icon: 'custom-line-height',
+              tooltip: 'Giãn dòng',
+              fetch: (callback) => {
+                const items = [
+                  { type: 'menuitem', text: '1', onAction: () => applyLineHeight(editor, '1') },
+                  { type: 'menuitem', text: '1.1', onAction: () => applyLineHeight(editor, '1.1') },
+                  { type: 'menuitem', text: '1.2', onAction: () => applyLineHeight(editor, '1.2') },
+                  { type: 'menuitem', text: '1.3', onAction: () => applyLineHeight(editor, '1.3') },
+                  { type: 'menuitem', text: '1.4', onAction: () => applyLineHeight(editor, '1.4') },
+                  { type: 'menuitem', text: '1.5', onAction: () => applyLineHeight(editor, '1.5') },
+                  { type: 'menuitem', text: '2', onAction: () => applyLineHeight(editor, '2') },
+                  {
+                    type: 'menuitem',
+                    text: 'Tuỳ chỉnh',
+                    onAction: () => {
+                      editor.windowManager.open({
+                        title: 'Giãn dòng',
+                        body: {
+                          type: 'panel',
+                          items: [
+                            {
+                              type: 'input',
+                              name: 'lineheight',
+                              placeholder: 'Nhập mức giãn dòng'
+                            }
+                          ]
+                        },
+                        buttons: [
+                          {
+                            type: 'submit',
+                            text: 'Áp dụng',
+                            primary: true
+                          }
+                        ],
+                        onSubmit: (api) => {
+                          const data = api.getData();
+                          if (data.lineheight && data.lineheight.trim()) {
+                            applyLineHeight(editor, data.lineheight.trim());
+                          }
+                          api.close();
+                        }
+                      });
+                    }
+                  }
+                ];
+                callback(items);
+              }
+            });
+
+            // Lắng nghe sự kiện Fullscreen của TinyMCE
+            editor.on('FullscreenStateChanged', (e) => {
+              if (e.state) {
+                if (!isSystemTogglingFullscreenRef.current) {
+                  isManualFullscreenRef.current = true;
+                }
+              } else {
+                if (autoFullscreenTriggeredRef.current) {
+                  autoFullscreenTriggeredRef.current = false;
+                  userExitedAutoFullscreenRef.current = true;
+                }
+                if (isManualFullscreenRef.current) {
+                  isManualFullscreenRef.current = false;
+                }
+              }
+            });
+
             editor.on('init', () => {
               const contentToLoad = tempContentRef.current !== null ? tempContentRef.current : (currentNode && currentNode.content);
               if (contentToLoad) editor.setContent(contentToLoad);
               setEditorReady(true);
               tempContentRef.current = null;
-
-              // Áp dụng zoom cho trình soạn thảo TinyMCE
-              const doc = editor.getDoc();
-              if (doc) {
-                let zoomStyle = doc.getElementById('tinymce-zoom-style');
-                if (!zoomStyle && doc.head) {
-                  zoomStyle = doc.createElement('style');
-                  zoomStyle.id = 'tinymce-zoom-style';
-                  doc.head.appendChild(zoomStyle);
-                }
-                if (zoomStyle) {
-                  zoomStyle.innerHTML = `
-                    body {
-                      --lesson-font-size: ${viewFontSize}pt !important;
-                      font-size: ${viewFontSize}pt !important;
-                      line-height: 1.8 !important;
-                    }
-                    body p, body div:not(.math-tex):not(.katex-display), body span:not(.katex):not(.katex *):not(.math-tex), body li, body td, body th, body a, body b, body strong, body i, body em, body u, body s {
-                      font-size: ${viewFontSize}pt !important;
-                      line-height: 1.8 !important;
-                    }
-                    body h1, body h1 *:not(.katex):not(.katex *) { font-size: ${Math.round(viewFontSize * 1.6)}pt !important; }
-                    body h2, body h2 *:not(.katex):not(.katex *) { font-size: ${Math.round(viewFontSize * 1.35)}pt !important; }
-                    body h3, body h3 *:not(.katex):not(.katex *) { font-size: ${Math.round(viewFontSize * 1.2)}pt !important; }
-                    body h4, body h4 *:not(.katex):not(.katex *) { font-size: ${Math.round(viewFontSize * 1.1)}pt !important; }
-                  `;
-                }
-              }
 
               // Chặn zoom trình duyệt trong iframe TinyMCE
               const win = editor.getWin();
@@ -991,40 +1059,55 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     };
   }, [isEditingContent, autoFormat]);
 
-  // Cập nhật cỡ chữ trong TinyMCE khi bấm nút zoom ở chế độ Sửa
+  // Tự động bật Fullscreen khi cuộn làm khuất thanh công cụ TinyMCE
   useEffect(() => {
-    if (isEditingContent && window.tinymce) {
+    if (!isEditingContent) {
+      autoFullscreenTriggeredRef.current = false;
+      userExitedAutoFullscreenRef.current = false;
+      isManualFullscreenRef.current = false;
+      return;
+    }
+
+    const handleScroll = () => {
+      if (!window.tinymce) return;
       const editor = window.tinymce.get('editor-container');
-      if (editor) {
-        const doc = editor.getDoc();
-        if (doc) {
-          let zoomStyle = doc.getElementById('tinymce-zoom-style');
-          if (!zoomStyle && doc.head) {
-            zoomStyle = doc.createElement('style');
-            zoomStyle.id = 'tinymce-zoom-style';
-            doc.head.appendChild(zoomStyle);
-          }
-          if (zoomStyle) {
-            zoomStyle.innerHTML = `
-              body {
-                --lesson-font-size: ${viewFontSize}pt !important;
-                font-size: ${viewFontSize}pt !important;
-                line-height: 1.8 !important;
-              }
-              body p, body div:not(.math-tex):not(.katex-display), body span:not(.katex):not(.katex *):not(.math-tex), body li, body td, body th, body a, body b, body strong, body i, body em, body u, body s {
-                font-size: ${viewFontSize}pt !important;
-                line-height: 1.8 !important;
-              }
-              body h1, body h1 *:not(.katex):not(.katex *) { font-size: ${Math.round(viewFontSize * 1.6)}pt !important; }
-              body h2, body h2 *:not(.katex):not(.katex *) { font-size: ${Math.round(viewFontSize * 1.35)}pt !important; }
-              body h3, body h3 *:not(.katex):not(.katex *) { font-size: ${Math.round(viewFontSize * 1.2)}pt !important; }
-              body h4, body h4 *:not(.katex):not(.katex *) { font-size: ${Math.round(viewFontSize * 1.1)}pt !important; }
-            `;
-          }
+      if (!editor || !editor.getContainer()) return;
+
+      const container = editor.getContainer();
+      const headerEl = container.querySelector('.tox-editor-header') || container;
+      const rect = headerEl.getBoundingClientRect();
+      const isFullscreen = editor.plugins && editor.plugins.fullscreen ? editor.plugins.fullscreen.isFullscreen() : false;
+
+      if (isFullscreen) return;
+      if (isManualFullscreenRef.current) return;
+
+      if (userExitedAutoFullscreenRef.current) {
+        // Chỉ tự Fullscreen nữa nếu đã cuộn ngược lên để thấy HOÀN TOÀN thanh công cụ và cuộn xuống tiếp
+        if (rect.top >= 60 && rect.bottom <= window.innerHeight) {
+          userExitedAutoFullscreenRef.current = false;
+          autoFullscreenTriggeredRef.current = false;
+        }
+        return;
+      }
+
+      // Khi cuộn lên mà thanh công cụ không thấy nữa
+      if (rect.bottom <= 60) {
+        if (!autoFullscreenTriggeredRef.current) {
+          autoFullscreenTriggeredRef.current = true;
+          isSystemTogglingFullscreenRef.current = true;
+          editor.execCommand('mceFullScreen');
+          setTimeout(() => {
+            isSystemTogglingFullscreenRef.current = false;
+          }, 150);
         }
       }
-    }
-  }, [viewFontSize, isEditingContent]);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [isEditingContent]);
 
   const processSmartText = (text, editor) => {
      if (!text) return '';
@@ -1224,8 +1307,8 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     });
   };
   const resetFontSize = () => {
-    setViewFontSize(16);
-    try { localStorage.setItem('user_view_font_size', '16'); } catch {}
+    setViewFontSize(18);
+    try { localStorage.setItem('user_view_font_size', '18'); } catch {}
   };
   const allowedChildTypes = ALLOWED_CHILDREN[currentNode ? currentNode.type : NodeType.ROOT] || [];
 
@@ -1448,10 +1531,10 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
                 `}
               </div>
               
-              <div className="flex-1 relative flex flex-col">
+              <div className="flex-1 relative flex flex-col h-full">
                 ${isEditingContent ? html`
-                  <div className="bg-white/80 select-text min-h-[600px]">
-                    <textarea id="editor-container" className="w-full"></textarea>
+                  <div className="bg-white/80 select-text flex-1 flex flex-col h-full min-h-[600px]">
+                    <textarea id="editor-container" className="w-full h-full flex-1"></textarea>
                   </div>
                 ` : html`
                   <div className=${`relative flex flex-col min-h-[500px] ${isLiquid ? 'bg-white/30' : 'bg-white'}`}>
@@ -1469,9 +1552,11 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
                           key="math-skeleton-content" 
                           style=${{
                             '--lesson-font-size': `${viewFontSize}pt`,
+                            '--lesson-scale': `${viewFontSize / 18}`,
+                            zoom: `${viewFontSize / 18}`,
                             fontSize: `${viewFontSize}pt`
                           }}
-                          className="lesson-content-skeleton p-6 md:p-14 prose prose-slate max-w-none leading-loose select-none pointer-events-none relative"
+                          className="lesson-content-skeleton p-6 md:p-14 prose prose-slate max-w-none leading-relaxed select-none pointer-events-none relative"
                           dangerouslySetInnerHTML=${{ __html: skeletonLessonContent }}
                         ></div>
                       ` : null)}
@@ -1479,9 +1564,11 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
                         ref=${lessonContentRef}
                         style=${{
                           '--lesson-font-size': `${viewFontSize}pt`,
+                          '--lesson-scale': `${viewFontSize / 18}`,
+                          zoom: `${viewFontSize / 18}`,
                           fontSize: `${viewFontSize}pt`
                         }}
-                        className=${`lesson-content p-6 md:p-14 prose prose-slate max-w-none leading-loose prose-a:text-indigo-600 prose-img:rounded-2xl prose-img:shadow-xl select-text transition-opacity duration-200 ${(!displayLessonContent && loading) || (hasMath && !isMathRendered) ? 'invisible opacity-0 pointer-events-none absolute inset-x-0 top-0 -z-10 max-h-0 overflow-hidden' : 'visible opacity-100 relative'}`}
+                        className=${`lesson-content p-6 md:p-14 prose prose-slate max-w-none leading-relaxed prose-a:text-indigo-600 prose-img:rounded-2xl prose-img:shadow-xl select-text transition-opacity duration-200 ${(!displayLessonContent && loading) || (hasMath && !isMathRendered) ? 'invisible opacity-0 pointer-events-none absolute inset-x-0 top-0 -z-10 max-h-0 overflow-hidden' : 'visible opacity-100 relative'}`}
                         dangerouslySetInnerHTML=${{ __html: displayLessonContent || '<div class="flex flex-col items-center justify-center py-32 opacity-40"><div class="w-16 h-16 bg-white/50 rounded-full mb-4 shadow-sm"></div><p class="font-serif italic text-xl text-slate-600">Chưa có nội dung bài học.</p></div>' }}
                       ></div>
                   </div>
@@ -1619,7 +1706,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
       ${canShowZoom && html`
         <div key="zoom-controls" className="fixed bottom-8 right-6 flex flex-col gap-2 z-40 animate-in slide-in-from-right-10">
             <button key="btn-zoom-in" title="Phóng to cỡ chữ (+2pt)" onClick=${increaseFontSize} className=${`p-3 border text-indigo-600 rounded-2xl transition-all hover:scale-110 active:scale-95 ${isLiquid ? 'bg-white/80 backdrop-blur-md border-white/60 shadow-glass hover:shadow-glass-hover' : 'bg-white border-slate-200 shadow-md hover:bg-slate-50'}`}><${Plus} size=${24} /></button>
-            <div key="zoom-level" onClick=${resetFontSize} title="Cỡ chữ hiện tại. Nhấn để đặt lại 16pt" className=${`cursor-pointer border text-slate-600 font-bold text-xs py-1 px-2 rounded-lg text-center shadow-sm select-none transition-transform hover:scale-105 active:scale-95 ${isLiquid ? 'bg-white/80 backdrop-blur-md border-white/60' : 'bg-white border-slate-200'}`}>${viewFontSize}pt</div>
+            <div key="zoom-level" onClick=${resetFontSize} title="Cỡ chữ hiện tại. Nhấn để đặt lại 18pt" className=${`cursor-pointer border text-slate-600 font-bold text-xs py-1 px-2 rounded-lg text-center shadow-sm select-none transition-transform hover:scale-105 active:scale-95 ${isLiquid ? 'bg-white/80 backdrop-blur-md border-white/60' : 'bg-white border-slate-200'}`}>${viewFontSize}pt</div>
             <button key="btn-zoom-out" title="Thu nhỏ cỡ chữ (-2pt)" onClick=${decreaseFontSize} className=${`p-3 border text-slate-600 rounded-2xl transition-all hover:scale-110 active:scale-95 ${isLiquid ? 'bg-white/80 backdrop-blur-md border-white/60 shadow-glass hover:shadow-glass-hover' : 'bg-white border-slate-200 shadow-md hover:bg-slate-50'}`}><${Minus} size=${24} /></button>
         </div>
       `}
