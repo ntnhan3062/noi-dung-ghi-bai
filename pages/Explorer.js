@@ -215,7 +215,7 @@ export const generateLessonSkeletonHtml = (rawHtml) => {
   }
 };
 
-export const Explorer = ({ mode, isAppMode, uiConfig }) => {
+export const Explorer = ({ mode, isAppMode, uiConfig, onInitialRenderComplete }) => {
   const { nodeId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -509,6 +509,18 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     }
   }, [loading, currentNode?.type, hasMath]);
 
+  // Thông báo render hoàn tất 100% cho InitialLoadingScreen khi load lần đầu
+  const initialRenderNotifiedRef = useRef(false);
+  useEffect(() => {
+    if (initialRenderNotifiedRef.current) return;
+    if (!loading && (currentNode?.type !== NodeType.LESSON || isMathRendered)) {
+      initialRenderNotifiedRef.current = true;
+      if (onInitialRenderComplete) {
+        onInitialRenderComplete();
+      }
+    }
+  }, [loading, currentNode?.type, isMathRendered, onInitialRenderComplete]);
+
   useEffect(() => {
     if (isEditingContent) return;
     if (currentNode?.type !== NodeType.LESSON) return;
@@ -542,10 +554,26 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
       }
     }, 3500);
 
-    const markRenderComplete = () => {
+    const markRenderComplete = async () => {
       if (!isMounted) return;
       lastRenderedNodeIdRef.current = currentNode?.id;
       lastRenderedContentRef.current = currentNode?.content;
+
+      const contentElement = lessonContentRef.current || document.querySelector('.lesson-content');
+      if (contentElement) {
+        const imgs = Array.from(contentElement.querySelectorAll('img'));
+        if (imgs.length > 0) {
+          await Promise.all(imgs.map(img => {
+            if (img.complete) return Promise.resolve();
+            return new Promise(res => {
+              img.onload = res;
+              img.onerror = res;
+              setTimeout(res, 2500);
+            });
+          }));
+        }
+      }
+
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           if (isMounted) {

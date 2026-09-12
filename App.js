@@ -40,7 +40,7 @@ const getBasename = () => {
   return '';
 };
 
-const AnimatedRoutes = ({ isAppMode, uiConfig }) => {
+const AnimatedRoutes = ({ isAppMode, uiConfig, onInitialRenderComplete }) => {
     const location = useLocation();
     const navigate = useNavigate();
     const prevHistoryIdx = useRef(typeof window !== 'undefined' ? (window.history.state?.idx ?? 0) : 0);
@@ -85,14 +85,14 @@ const AnimatedRoutes = ({ isAppMode, uiConfig }) => {
             <${Routes}>
                 <${Route} key="route-home" path="/" element=${html`<${Navigate} to="/view" replace />`} />
                 <${Route} key="route-index" index element=${html`<${Navigate} to="/view" replace />`} />
-                <${Route} key="route-view" path="/view" element=${html`<${Explorer} mode="view" isAppMode=${isAppMode} uiConfig=${uiConfig} />`} />
-                <${Route} key="route-view-node" path="/view/:nodeId" element=${html`<${Explorer} mode="view" isAppMode=${isAppMode} uiConfig=${uiConfig} />`} />
+                <${Route} key="route-view" path="/view" element=${html`<${Explorer} mode="view" isAppMode=${isAppMode} uiConfig=${uiConfig} onInitialRenderComplete=${onInitialRenderComplete} />`} />
+                <${Route} key="route-view-node" path="/view/:nodeId" element=${html`<${Explorer} mode="view" isAppMode=${isAppMode} uiConfig=${uiConfig} onInitialRenderComplete=${onInitialRenderComplete} />`} />
                 ${!isAppMode && html`
                     <${React.Fragment}>
-                        <${Route} key="route-edit" path="/edit" element=${html`<${AuthGuard}><${Explorer} mode="edit" uiConfig=${uiConfig} /></${AuthGuard}>`} />
+                        <${Route} key="route-edit" path="/edit" element=${html`<${AuthGuard}><${Explorer} mode="edit" uiConfig=${uiConfig} onInitialRenderComplete=${onInitialRenderComplete} /></${AuthGuard}>`} />
                         <${Route} key="route-settings" path="/edit/settings" element=${html`<${AuthGuard}><${SettingsPage} /></${AuthGuard}>`} />
                         <${Route} key="route-classes" path="/edit/classes" element=${html`<${AuthGuard}><${ClassManagementPage} /></${AuthGuard}>`} />
-                        <${Route} key="route-edit-node" path="/edit/:nodeId" element=${html`<${AuthGuard}><${Explorer} mode="edit" uiConfig=${uiConfig} /></${AuthGuard}>`} />
+                        <${Route} key="route-edit-node" path="/edit/:nodeId" element=${html`<${AuthGuard}><${Explorer} mode="edit" uiConfig=${uiConfig} onInitialRenderComplete=${onInitialRenderComplete} /></${AuthGuard}>`} />
                     </${React.Fragment}>
                 `}
                 <${Route} key="route-catch-all" path="*" element=${html`<${StatusPage} type="not-found" />`} />
@@ -338,7 +338,12 @@ const App = () => {
   const isAppMode = window.location.pathname.includes('/special-application');
   const [isOnline, setIsOnline] = useState(true);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isExplorerRenderReady, setIsExplorerRenderReady] = useState(false);
   const [isDataReady, setIsDataReady] = useState(false);
+
+  const handleInitialRenderComplete = useCallback(() => {
+    setIsExplorerRenderReady(true);
+  }, []);
   const [uiConfig, setUiConfig] = useState(() => {
     let localBackButton = { enabled: true, view: true, edit: true, app: true };
     try {
@@ -558,11 +563,12 @@ const App = () => {
             <${ClassProvider}>
               <${BreadcrumbProvider}>
                 <${Layout} isAppMode=${isAppMode} uiConfig=${uiConfig} currentBg=${currentBg} isOnline=${isOnline} isInitialLoading=${isInitialLoading}>
-                   <${AnimatedRoutes} isAppMode=${isAppMode} uiConfig=${uiConfig} />
+                   <${AnimatedRoutes} isAppMode=${isAppMode} uiConfig=${uiConfig} onInitialRenderComplete=${handleInitialRenderComplete} />
                 </${Layout}>
                 ${isInitialLoading && html`
                   <${InitialLoadingScreen} 
                     onBootstrapData=${handleBootstrapData}
+                    isContentReady=${isExplorerRenderReady}
                     isLiquid=${uiConfig.style === 'liquid'}
                     isAppMode=${isAppMode}
                     onComplete=${() => setIsInitialLoading(false)}

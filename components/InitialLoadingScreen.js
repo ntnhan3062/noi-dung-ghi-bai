@@ -22,6 +22,7 @@ import { apiService } from '../services/apiService.js';
 export const InitialLoadingScreen = ({ 
   onBootstrapData,
   onComplete, 
+  isContentReady = false,
   isLiquid = true, 
   layoutError = false,
   isAppMode = false
@@ -38,6 +39,13 @@ export const InitialLoadingScreen = ({
   const currentProgressRef = useRef(0);
   const outroStartedRef = useRef(false);
   const bootstrapCompletedPayloadRef = useRef(null);
+  const isContentReadyRef = useRef(isContentReady);
+
+  useEffect(() => {
+    if (isContentReady) {
+      isContentReadyRef.current = true;
+    }
+  }, [isContentReady]);
 
   // 1. Tính toán chính xác chu vi của đường viền SVG
   useEffect(() => {
@@ -138,11 +146,11 @@ export const InitialLoadingScreen = ({
       } catch (e) {}
       updateTarget(15);
 
-      // Bước 2: Nạp Cấu hình hệ thống (+25% -> 40%)
+      // Bước 2: Nạp Cấu hình hệ thống (+20% -> 35%)
       try {
         fullConfig = await Promise.race([
           apiService.getFullConfig(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Config timeout')), 3500))
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Config timeout')), 4000))
         ]);
         if (fullConfig && isAppMode) {
           localStorage.setItem('cached_full_config', JSON.stringify(fullConfig));
@@ -161,14 +169,14 @@ export const InitialLoadingScreen = ({
           ui: { style: 'liquid', backButton: { enabled: true, view: true, edit: true, app: true }, zoom: { enabled: true, view: true, edit: true, app: false } } 
         };
       }
-      updateTarget(40);
+      updateTarget(35);
 
-      // Bước 3: Nạp Dữ liệu bài học & danh mục (+35% -> 75%)
+      // Bước 3: Nạp Dữ liệu bài học & danh mục (+20% -> 55%)
       try {
         const authPass = sessionStorage.getItem('auth_pass');
         allNodes = await Promise.race([
           apiService.getAllNodes(authPass),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Nodes timeout')), 4000))
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Nodes timeout')), 5000))
         ]);
         if (Array.isArray(allNodes)) {
           try {
@@ -185,9 +193,9 @@ export const InitialLoadingScreen = ({
           }
         } catch {}
       }
-      updateTarget(75);
+      updateTarget(55);
 
-      // Bước 4: Nạp trước hình nền nếu có (+15% -> 90%)
+      // Bước 4: Nạp trước hình nền 100% nếu có (+20% -> 75%)
       const bgActive = !!(fullConfig?.background && fullConfig?.background?.active);
       const bgImages = (fullConfig?.background && Array.isArray(fullConfig?.background?.images)) ? fullConfig.background.images : [];
       if (bgActive && bgImages.length > 0) {
@@ -195,16 +203,38 @@ export const InitialLoadingScreen = ({
         if (selectedBg) {
           await new Promise(resolve => {
             const img = new Image();
-            img.onload = resolve;
-            img.onerror = resolve;
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
             img.src = selectedBg;
-            setTimeout(resolve, 800); // Max 800ms cho ảnh nền
           });
         }
       }
-      updateTarget(90);
+      updateTarget(75);
 
-      // Bước 5: Chuẩn bị DOM layout & KaTeX (+10% -> 100%)
+      // Bàn giao dữ liệu cho App ngay lập tức để render nền và layout
+      bootstrapCompletedPayloadRef.current = {
+        fullConfig,
+        allNodes,
+        currentBg: selectedBg
+      };
+      if (onBootstrapData) {
+        onBootstrapData(bootstrapCompletedPayloadRef.current);
+      }
+
+      // Bước 5: Chờ Explorer GET bài học/thư mục và render 100% (+20% -> 95%)
+      await new Promise(resolve => {
+        let checkCount = 0;
+        const interval = setInterval(() => {
+          checkCount++;
+          if (!isMounted || isContentReadyRef.current || checkCount >= 60) {
+            clearInterval(interval);
+            resolve();
+          }
+        }, 100);
+      });
+      updateTarget(95);
+
+      // Bước 6: Chuẩn bị DOM layout & KaTeX layout stabilization (+5% -> 100%)
       await new Promise(resolve => {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
@@ -213,23 +243,17 @@ export const InitialLoadingScreen = ({
         });
       });
 
-      bootstrapCompletedPayloadRef.current = {
-        fullConfig,
-        allNodes,
-        currentBg: selectedBg
-      };
-
       updateTarget(100);
     };
 
     runBootstrap();
 
-    // Failsafe timer tối đa 3.5s đảm bảo không bao giờ bị kẹt
+    // Safety timer tối đa 7.5s đảm bảo không bị kẹt vô tận
     const failsafe = setTimeout(() => {
       if (!isMounted) return;
       currentProgressRef.current = 100;
       triggerOutro();
-    }, 3500);
+    }, 7500);
 
     return () => {
       isMounted = false;
