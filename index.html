@@ -129,6 +129,38 @@
 
     <!-- TinyMCE Community Edition -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js" referrerpolicy="origin"></script>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Be Vietnam Pro", "ui-sans-serif", "system-ui", "sans-serif"],
+              serif: ["Lora", "ui-serif", "Georgia", "serif"],
+              times: ["Times New Roman", "Tinos", "Times", "serif"],
+              tinos: ["Tinos", "serif"],
+              arial: ["Arimo", "Arial", "Helvetica", "sans-serif"],
+            },
+            keyframes: {
+              marquee: {
+                '0%, 20%': { transform: 'translateX(0)' },
+                '100%': { transform: 'translateX(-100%)' }
+              },
+              float: {
+                '0%, 100%': { transform: 'translateY(0)' },
+                '50%': { transform: 'translateY(-10px)' }
+              }
+            },
+            animation: {
+              marquee: 'marquee 15s linear infinite',
+              float: 'float 3s ease-in-out infinite'
+            }
+          }
+        }
+      }
+    </script>
     <style>
       /* YouTube-style Shimmer Animation for LaTeX Math */
       @keyframes math-skeleton-shimmer {
