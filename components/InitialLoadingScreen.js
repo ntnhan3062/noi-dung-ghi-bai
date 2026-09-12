@@ -66,33 +66,33 @@ export const InitialLoadingScreen = ({
     setProgress(100);
     setPhase('completed');
 
-    // Chuyển giao dữ liệu đã nạp sẵn cho App
+    // Chuyển giao dữ liệu đã nạp sẵn cho App khi đạt 100%
     if (onBootstrapData && bootstrapCompletedPayloadRef.current) {
       onBootstrapData(bootstrapCompletedPayloadRef.current);
     }
 
-    // Sau 0.2s (200ms): Ẩn viền trong mượt mà (thụt ra ngoài và bị cắt dần)
+    // Sau 0.2s (200ms): Viền trong to ra, bị cắt bởi viền ngoài và biến mất
     setTimeout(() => {
       setPhase('ring-out');
     }, 200);
 
-    // Sau 200ms + 300ms = 500ms: Bắt đầu hiệu ứng Logo thu nhỏ & Chữ trượt lên biến mất
+    // Sau 0.5s nữa (tức 200ms + 500ms = 700ms): Hiệu ứng thu nhỏ logo & fade out + Chữ chạy lên bị cắt ở đỉnh
     setTimeout(() => {
       setPhase('exit');
-    }, 500);
+    }, 700);
 
-    // Khi hiệu ứng exit chạy được 70% (70% của 400ms = 280ms -> tại mốc 500ms + 280ms = 780ms):
-    // Nền trắng bắt đầu mờ dần
+    // Khi hiệu ứng exit chạy được 70% (70% của 500ms = 350ms -> tại mốc 700ms + 350ms = 1050ms):
+    // Nền mờ dần cho đến 100% hiệu ứng (30% còn lại = 150ms)
     setTimeout(() => {
       setPhase('fading-bg');
-    }, 780);
+    }, 1050);
 
-    // Sau khi cả 2 hiệu ứng và nền đạt 100% (tại 500ms + 400ms = 900ms):
-    // Ẩn hoàn toàn màn hình loading và bàn giao giao diện
+    // Khi cả hiệu ứng exit & nền mờ đạt 100% (tại mốc 700ms + 500ms = 1200ms):
+    // Hoàn tất màn hình loading và bàn giao giao diện
     setTimeout(() => {
       if (onComplete) onComplete();
       setPhase('done');
-    }, 900);
+    }, 1200);
   };
 
   // 3. Quản lý bootstrap sequence tự động gợi nạp tất cả phần còn lại và tính tiến độ
@@ -275,30 +275,30 @@ export const InitialLoadingScreen = ({
 
   // Logo thu nhỏ lại (scale down) và fade out
   const logoStyle = {
-    transform: isExiting ? 'scale(0.65)' : 'scale(1)',
+    transform: isExiting ? 'scale(0.6)' : 'scale(1)',
     opacity: isExiting ? 0 : 1,
     transformOrigin: 'center center',
-    transition: isExiting ? 'transform 400ms cubic-bezier(0.25, 1, 0.5, 1), opacity 380ms ease-out' : 'none'
+    transition: isExiting ? 'transform 500ms cubic-bezier(0.25, 1, 0.5, 1), opacity 450ms ease-out' : 'none'
   };
 
-  // Chữ chạy lên (translateY âm) và biến mất qua ranh giới ngay trên đầu
+  // Chữ chạy lên (translateY âm) bị giới hạn bởi ranh giới overflow-hidden ngay trên đầu
   const textStyle = {
     transform: isExiting ? 'translateY(-100%)' : 'translateY(0%)',
     opacity: isExiting ? 0 : 1,
-    transition: isExiting ? 'transform 400ms cubic-bezier(0.25, 1, 0.5, 1), opacity 350ms ease-in' : 'none'
+    transition: isExiting ? 'transform 500ms cubic-bezier(0.25, 1, 0.5, 1), opacity 400ms ease-in' : 'none'
   };
 
-  // Nền mờ dần khi cả 2 hiệu ứng đạt 70% (transition trong 120ms còn lại)
+  // Nền mờ dần từ mốc 70% đến 100% của hiệu ứng (150ms)
   const bgStyle = {
     opacity: isFadingBg ? 0 : 1,
-    transition: isFadingBg ? 'opacity 120ms ease-out' : 'none'
+    transition: isFadingBg ? 'opacity 150ms ease-out' : 'none'
   };
 
-  // Viền trong thụt ra ngoài và bị đường viền thường của logo cắt dần rồi hết
+  // Viền trong to ra (scale 1.3), bị cắt bởi viền ngoài (do container parent có overflow-hidden) và mờ dần
   const innerRingStyle = {
-    transform: isRingOut ? 'scale(1.22)' : 'scale(1)',
+    transform: isRingOut ? 'scale(1.32)' : 'scale(1)',
     opacity: isRingOut ? 0 : 1,
-    transition: isRingOut ? 'transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 300ms ease-out' : 'none',
+    transition: isRingOut ? 'transform 450ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 400ms ease-out' : 'none',
     transformOrigin: 'center center'
   };
 
