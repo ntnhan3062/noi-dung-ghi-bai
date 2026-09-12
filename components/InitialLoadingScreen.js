@@ -445,16 +445,13 @@ export const InitialLoadingScreen = ({
 
       <!-- Khung hiển thị logo và chữ ở trung tâm -->
       <div className="relative z-10 flex flex-col items-center justify-center">
-        <!-- Logo container định dạng đồng nhất với header logo container -->
+        <!-- Logo container định dạng 1 màu trắng duy nhất cho nền logo khi loading -->
         <div 
           ref=${logoRef}
           id="loading-logo-container"
-          className=${`relative w-20 h-20 rounded-2xl border flex items-center justify-center overflow-hidden ${isLiquid ? 'bg-white/20 backdrop-blur-md border-white/50 shadow-glass' : 'bg-white border-slate-200 shadow-sm'}`}
+          className="relative w-20 h-20 rounded-2xl border border-slate-200 bg-white shadow-sm flex items-center justify-center overflow-hidden"
           style=${logoStyle}
         >
-          <!-- Lớp hiệu ứng gradient liquid đồng nhất với header -->
-          ${isLiquid && html`<div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 opacity-100 pointer-events-none"></div>`}
-
           <!-- SVG Viền trong thể hiện mức load bắt đầu từ chính giữa cạnh trên -->
           <svg 
             className="absolute inset-0 w-full h-full pointer-events-none z-20 overflow-visible"
@@ -489,7 +486,7 @@ export const InitialLoadingScreen = ({
           className="mt-4 overflow-hidden flex flex-col items-center justify-center px-4 py-1"
         >
           <div style=${textStyle} className="flex flex-col items-center justify-center">
-            <span className=${`font-sans font-bold tracking-tight text-2xl drop-shadow-sm ${isLiquid ? 'bg-clip-text text-transparent bg-gradient-to-r from-indigo-900 to-violet-900' : 'text-slate-800'}`}>
+            <span className="font-sans font-bold tracking-tight text-2xl text-slate-800">
               ${layoutError ? 'Nội dung bài học' : 'Nội dung ghi bài'}
             </span>
           </div>
