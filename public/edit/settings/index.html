@@ -1,126 +1,30 @@
-
 <!DOCTYPE html>
 <html lang="vi">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nội dung ghi bài - Cài đặt</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%234f46e5%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><path d=%22M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z%22/><path d=%22M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z%22/></svg>">
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&family=Lora:ital,wght@0,400;0,700;1,400&family=Playfair+Display:wght@700&family=Roboto+Mono&family=Tinos:wght@400;700&family=Arimo:wght@400;700&display=swap" rel="stylesheet">
-
-    <script>
+    <script type="text/javascript">
       (function() {
-        var origWarn = console.warn;
-        console.warn = function() {
-          if (arguments[0] && typeof arguments[0] === 'string' && arguments[0].indexOf('cdn.tailwindcss.com') !== -1) {
-            return;
+        var l = window.location;
+        var pathname = l.pathname;
+        var isGithub = l.hostname.indexOf('github.io') !== -1;
+        var repoName = '';
+        if (isGithub) {
+          var segments = pathname.split('/').filter(Boolean);
+          if (segments.length > 0) {
+            repoName = '/' + segments[0];
           }
-          origWarn.apply(console, arguments);
-        };
+        }
+        var search = l.search ? ('&' + l.search.slice(1)) : '';
+        var target = l.protocol + '//' + l.host + repoName + '/?p=' + encodeURIComponent('/edit/settings') + search + l.hash;
+        l.replace(target);
       })();
     </script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- TinyMCE Community Edition -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js" referrerpolicy="origin"></script>
-
-    <style>
-      .select-none {
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
-        -webkit-touch-callout: none;
-      }
-      
-      input, textarea, .select-text {
-        -webkit-user-select: text;
-        -moz-user-select: text;
-        -ms-user-select: text;
-        user-select: text;
-        -webkit-touch-callout: default;
-      }
-
-      .tox-tinymce {
-        border-radius: 1.5rem !important;
-        border: 1px solid rgba(255, 255, 255, 0.6) !important;
-        background-color: rgba(255, 255, 255, 0.4) !important;
-        backdrop-filter: blur(16px) !important;
-        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1) !important;
-      }
-    </style>
-
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['"Be Vietnam Pro"', 'sans-serif'],
-              serif: ['"Lora"', 'serif'],
-              mono: ['"Roboto Mono"', 'monospace'],
-            },
-            colors: {
-              indigo: { 50: '#eef2ff', 500: '#6366f1', 600: '#4f46e5' },
-              violet: { 50: '#f5f3ff', 500: '#8b5cf6', 600: '#7c3aed' },
-              cyan: { 300: '#67e8f9', 400: '#22d3ee' },
-              pink: { 300: '#f9a8d4', 400: '#f472b6' },
-              yellow: { 300: '#fde047' },
-            },
-            boxShadow: {
-              'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
-              'glass-hover': '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
-              'neon': '0 0 20px rgba(99, 102, 241, 0.4)',
-            },
-            keyframes: {
-              marquee: {
-                '0%, 20%': { transform: 'translateX(0)' },
-                '100%': { transform: 'translateX(-100%)' },
-              },
-              blob: {
-                "0%": { transform: "translate(0px, 0px) scale(1)" },
-                "33%": { transform: "translate(30px, -50px) scale(1.1)" },
-                "66%": { transform: "translate(-20px, 20px) scale(0.9)" },
-                "100%": { transform: "translate(0px, 0px) scale(1)" }
-              },
-              float: {
-                "0%, 100%": { transform: "translateY(0)" },
-                "50%": { transform: "translateY(-10px)" }
-              },
-              shimmer: {
-                "0%": { backgroundPosition: "200% 0" },
-                "100%": { backgroundPosition: "-200% 0" }
-              }
-            },
-            animation: {
-              marquee: 'marquee 15s linear infinite',
-              blob: "blob 7s infinite",
-              float: "float 6s ease-in-out infinite",
-              shimmer: "shimmer 3s linear infinite",
-            }
-          },
-        },
-      }
-    </script>
-    <script type="importmap">
-    {
-      "imports": {
-        "react": "https://esm.sh/react@18.2.0",
-        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client?deps=react@18.2.0",
-        "react-dom": "https://esm.sh/react-dom@18.2.0?deps=react@18.2.0",
-        "lucide-react": "https://esm.sh/lucide-react@0.330.0?deps=react@18.2.0",
-        "react-router-dom": "https://esm.sh/react-router-dom@6.22.0?deps=react@18.2.0,react-dom@18.2.0",
-        "htm": "https://esm.sh/htm@3.1.1",
-        "sortablejs": "https://esm.sh/sortablejs@1.15.2",
-        "motion/react": "https://esm.sh/motion@12.38.0/react?deps=react@18.2.0"
-      }
-    }
-    </script>
   </head>
-  <body class="bg-slate-50 text-slate-900 font-sans antialiased select-none selection:bg-indigo-200 selection:text-indigo-900">
-    <div id="root"></div>
-    <script type="module" src="../../index.js"></script>
+  <body style="background-color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
+    <div style="text-align: center; color: #64748b;">
+      <p style="font-weight: 600; font-size: 1.1rem; color: #4f46e5;">Đang tải ứng dụng...</p>
+    </div>
   </body>
 </html>

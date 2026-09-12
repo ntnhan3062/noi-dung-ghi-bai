@@ -39,29 +39,39 @@ export const InitialLoadingScreen = ({ isDataReady = false, onComplete, isLiquid
 
     // Kiểm tra trạng thái tải document
     if (document.readyState === 'complete') {
-      updateTarget(45);
+      updateTarget(60);
     } else if (document.readyState === 'interactive') {
-      updateTarget(30);
+      updateTarget(40);
     }
 
-    const onWindowLoad = () => updateTarget(65);
+    const onWindowLoad = () => updateTarget(80);
     window.addEventListener('load', onWindowLoad);
 
     // Kiểm tra font chữ đã sẵn sàng
     if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(() => updateTarget(75)).catch(() => {});
+      document.fonts.ready.then(() => updateTarget(85)).catch(() => {});
     }
 
-    // Thời gian tối thiểu tăng dần tiến độ
-    const t1 = setTimeout(() => updateTarget(40), 150);
-    const t2 = setTimeout(() => updateTarget(60), 350);
-    const t3 = setTimeout(() => updateTarget(85), 600);
+    // Tiến độ tự động tăng mượt mà đảm bảo không bao giờ bị dừng lại (never stuck)
+    const t1 = setTimeout(() => updateTarget(50), 100);
+    const t2 = setTimeout(() => updateTarget(75), 250);
+    const t3 = setTimeout(() => updateTarget(90), 450);
+    const t4 = setTimeout(() => updateTarget(100), 750);
+
+    // Failsafe timer tối đa 2.2s để chuyển hoàn toàn sang ứng dụng
+    const failsafeTimer = setTimeout(() => {
+      progressTargetRef.current = 100;
+      setPhase('done');
+      if (onComplete) onComplete();
+    }, 2200);
 
     return () => {
       window.removeEventListener('load', onWindowLoad);
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
+      clearTimeout(t4);
+      clearTimeout(failsafeTimer);
     };
   }, []);
 

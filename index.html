@@ -6,6 +6,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no" />
     <script>
       (function() {
+        var l = window.location;
+        // Xử lý chuyển hướng SPA từ 404.html hoặc các trang phụ
+        if (l.search && l.search.indexOf('p=') !== -1) {
+          var params = new URLSearchParams(l.search);
+          var redirectPath = params.get('p');
+          if (redirectPath) {
+            params.delete('p');
+            var newSearch = params.toString() ? ('?' + params.toString()) : '';
+            var isGithub = l.hostname.indexOf('github.io') !== -1;
+            var repoPrefix = '';
+            if (isGithub) {
+              var segments = l.pathname.split('/').filter(Boolean);
+              if (segments.length > 0) {
+                repoPrefix = '/' + segments[0];
+              }
+            }
+            var targetPath = repoPrefix + decodeURIComponent(redirectPath) + newSearch + l.hash;
+            window.history.replaceState(null, null, targetPath);
+          }
+        }
+
         var path = window.location.pathname;
         var cleanPath = path.replace(/\/+$/, '');
         if (cleanPath === '/noi-dung-ghi-bai' || path === '/noi-dung-ghi-bai/index.html') {

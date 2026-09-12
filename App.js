@@ -510,10 +510,23 @@ const App = () => {
     }
   })();
 
+  useEffect(() => {
+    // Failsafe timer tối đa 2.5s đảm bảo không bao giờ bị kẹt màn hình loading
+    const safetyTimer = setTimeout(() => {
+      setIsInitialLoading(false);
+      setIsDataReady(true);
+    }, 2500);
+    return () => clearTimeout(safetyTimer);
+  }, []);
+
   if (!isAuthorized) return html`
-    <${LayoutErrorProvider}>
-      <${StatusPage} type="access-denied" subMessage="Yêu cầu không hợp lệ. Bạn cần có đủ mã khóa xác thực để truy cập ứng dụng này." />
-    </${LayoutErrorProvider}>
+    <${ErrorBoundary}>
+      <${LayoutErrorProvider}>
+        <${BrowserRouter} basename=${getBasename()}>
+          <${StatusPage} type="access-denied" subMessage="Yêu cầu không hợp lệ. Bạn cần có đủ mã khóa xác thực để truy cập ứng dụng này." />
+        </${BrowserRouter}>
+      </${LayoutErrorProvider}>
+    </${ErrorBoundary}>
   `;
 
   return html`
