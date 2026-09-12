@@ -26,18 +26,34 @@ export const InitialLoadingScreen = ({ isDataReady = false, onComplete, isLiquid
 
   const logoRef = useRef(null);
   const textRef = useRef(null);
-  const progressTargetRef = useRef(15);
-  const currentProgressRef = useRef(0);
-  const animFrameRef = useRef(null);
+  const pathRef = useRef(null);
+  const [pathLength, setPathLength] = useState(266.5);
 
-  // 1. Quản lý mức tải thực tế (% thực tế loading)
+  const progressTargetRef = useRef(20);
+  const currentProgressRef = useRef(0);
+
+  // Tính toán chính xác chu vi của đường viền SVG
   useEffect(() => {
-    // Các mốc kiểm tra tài nguyên thực tế
+    if (pathRef.current) {
+      try {
+        const len = pathRef.current.getTotalLength();
+        if (len && len > 0) {
+          setPathLength(len);
+        }
+      } catch (e) {}
+    }
+  }, []);
+
+  // 1. Quản lý mức tải và tiến trình tăng mượt mà (% tiến độ)
+  useEffect(() => {
+    let isMounted = true;
+    let animId = null;
+
     const updateTarget = (val) => {
       progressTargetRef.current = Math.max(progressTargetRef.current, val);
     };
 
-    // Kiểm tra trạng thái tải document
+    // Kiểm tra trạng thái thực tế của trang
     if (document.readyState === 'complete') {
       updateTarget(60);
     } else if (document.readyState === 'interactive') {
@@ -47,142 +63,134 @@ export const InitialLoadingScreen = ({ isDataReady = false, onComplete, isLiquid
     const onWindowLoad = () => updateTarget(80);
     window.addEventListener('load', onWindowLoad);
 
-    // Kiểm tra font chữ đã sẵn sàng
     if (document.fonts && document.fonts.ready) {
       document.fonts.ready.then(() => updateTarget(85)).catch(() => {});
     }
 
-    // Tiến độ tự động tăng mượt mà đảm bảo không bao giờ bị dừng lại (never stuck)
-    const t1 = setTimeout(() => updateTarget(50), 100);
-    const t2 = setTimeout(() => updateTarget(75), 250);
-    const t3 = setTimeout(() => updateTarget(90), 450);
-    const t4 = setTimeout(() => updateTarget(100), 750);
+    // Các mốc tăng dần tiến trình để chạy liên tục và mượt mà
+    const t1 = setTimeout(() => updateTarget(45), 60);
+    const t2 = setTimeout(() => updateTarget(70), 180);
+    const t3 = setTimeout(() => updateTarget(90), 360);
+    const t4 = setTimeout(() => updateTarget(100), 600);
 
-    // Failsafe timer tối đa 2.2s để chuyển hoàn toàn sang ứng dụng
-    const failsafeTimer = setTimeout(() => {
-      progressTargetRef.current = 100;
-      setPhase('done');
-      if (onComplete) onComplete();
-    }, 2200);
-
-    return () => {
-      window.removeEventListener('load', onWindowLoad);
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      clearTimeout(t4);
-      clearTimeout(failsafeTimer);
-    };
-  }, []);
-
-  // Khi dữ liệu ứng dụng (config, classes, v.v.) đã sẵn sàng
-  useEffect(() => {
-    if (isDataReady) {
-      progressTargetRef.current = 100;
-    }
-  }, [isDataReady]);
-
-  // Vòng lặp làm mượt tiến độ (smooth interpolation)
-  useEffect(() => {
-    let isMounted = true;
-
-    const tick = () => {
+    // Vòng lặp animation frame nội suy giá trị tiến độ
+    const stepLoop = () => {
       if (!isMounted) return;
 
       const target = progressTargetRef.current;
       const current = currentProgressRef.current;
 
       if (current < target) {
-        // Tiến dần về target một cách êm ái
-        const step = Math.max(0.6, (target - current) * 0.12);
+        const diff = target - current;
+        const step = Math.max(0.8, diff * 0.16);
         const next = Math.min(100, current + step);
         currentProgressRef.current = next;
-        setProgress(Math.round(next * 10) / 10);
+        setProgress(next);
       }
 
       if (currentProgressRef.current < 100) {
-        animFrameRef.current = requestAnimationFrame(tick);
+        animId = requestAnimationFrame(stepLoop);
       } else {
-        // Đã đạt 100%
+        setProgress(100);
         setPhase('completed');
       }
     };
 
-    animFrameRef.current = requestAnimationFrame(tick);
+    animId = requestAnimationFrame(stepLoop);
+
+    // Failsafe timer tối đa 1.8s để đảm bảo không bao giờ bị kẹt
+    const failsafe = setTimeout(() => {
+      if (!isMounted) return;
+      currentProgressRef.current = 100;
+      setProgress(100);
+      setPhase('completed');
+    }, 1800);
 
     return () => {
       isMounted = false;
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      if (animId) cancelAnimationFrame(animId);
+      window.removeEventListener('load', onWindowLoad);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+      clearTimeout(failsafe);
     };
   }, []);
 
-  // 2. Xử lý sau khi đạt 100%:
-  // - "sau khi loading 100% đợi 0.2s và ẩn viền trong này đi mượt mà (thục ra ngoài và bị đường viền thường của logo bình thường cắt dần và hết)"
-  // - "sau đó 0.5s thì có hiệu ứng di chuyển logo thì thu nhỏ và chạy về vị trí trên header, chữ cũng quay về đúng kích thước và di chuyển về vị trí trên header"
-  // - "nền thì mờ và biến mất hoàn toàn ngay khi logo và chữ đã di chuyển được 20% chặn đường."
+  // Khi dữ liệu thực tế từ API đã sẵn sàng
+  useEffect(() => {
+    if (isDataReady) {
+      progressTargetRef.current = 100;
+    }
+  }, [isDataReady]);
+
+  // 2. Trình tự sau khi đạt 100%:
+  // - Đợi 0.2s ẩn viền trong (ring-out)
+  // - Sau đó 0.5s logo & chữ thu nhỏ bay về header (flying)
+  // - Nền mờ và biến mất hoàn toàn ngay trong 20% chặng đường đầu
+  // - Kết thúc hoàn toàn (done)
   useEffect(() => {
     if (phase === 'completed') {
-      // Đợi 0.2s sau khi đạt 100%
+      // Mốc 1: Sau 0.2s bắt đầu ẩn viền trong
       const timerRingOut = setTimeout(() => {
         setPhase('ring-out');
-
-        // Sau đó 0.5s (500ms) tính từ lúc bắt đầu ẩn viền trong thì bắt đầu hiệu ứng bay về header
-        const timerFly = setTimeout(() => {
-          // Đo đạc tọa độ chính xác của logo và chữ trên header
-          const targetLogo = document.getElementById('header-logo-container');
-          const targetText = document.getElementById('header-main-label');
-
-          if (targetLogo && targetText && logoRef.current && textRef.current) {
-            const tlRect = targetLogo.getBoundingClientRect();
-            const ttRect = targetText.getBoundingClientRect();
-            const clRect = logoRef.current.getBoundingClientRect();
-            const ctRect = textRef.current.getBoundingClientRect();
-
-            const cLogoCenterX = clRect.left + clRect.width / 2;
-            const cLogoCenterY = clRect.top + clRect.height / 2;
-            const tLogoCenterX = tlRect.left + tlRect.width / 2;
-            const tLogoCenterY = tlRect.top + tlRect.height / 2;
-
-            const logoDeltaX = tLogoCenterX - cLogoCenterX;
-            const logoDeltaY = tLogoCenterY - cLogoCenterY;
-            const logoScale = Math.min(1, tlRect.width / (clRect.width || 1));
-
-            const cTextCenterX = ctRect.left + ctRect.width / 2;
-            const cTextCenterY = ctRect.top + ctRect.height / 2;
-            const tTextCenterX = ttRect.left + ttRect.width / 2;
-            const tTextCenterY = ttRect.top + ttRect.height / 2;
-
-            const textDeltaX = tTextCenterX - cTextCenterX;
-            const textDeltaY = tTextCenterY - cTextCenterY;
-            const textScale = Math.min(1, ttRect.height / (ctRect.height || 1));
-
-            setFlyTransform({
-              logoDeltaX,
-              logoDeltaY,
-              logoScale,
-              textDeltaX,
-              textDeltaY,
-              textScale
-            });
-          }
-
-          setPhase('flying');
-
-          // Hiệu ứng bay kéo dài 550ms, kết thúc hoàn toàn
-          const timerDone = setTimeout(() => {
-            setPhase('done');
-            if (onComplete) onComplete();
-          }, 550);
-
-          return () => clearTimeout(timerDone);
-        }, 500);
-
-        return () => clearTimeout(timerFly);
       }, 200);
 
-      return () => clearTimeout(timerRingOut);
+      // Mốc 2: Sau 0.2s + 0.5s = 0.7s (700ms) bắt đầu hiệu ứng bay về header
+      const timerFly = setTimeout(() => {
+        const targetLogo = document.getElementById('header-logo-container');
+        const targetText = document.getElementById('header-main-label');
+
+        if (targetLogo && targetText && logoRef.current && textRef.current) {
+          const tlRect = targetLogo.getBoundingClientRect();
+          const ttRect = targetText.getBoundingClientRect();
+          const clRect = logoRef.current.getBoundingClientRect();
+          const ctRect = textRef.current.getBoundingClientRect();
+
+          const cLogoCenterX = clRect.left + clRect.width / 2;
+          const cLogoCenterY = clRect.top + clRect.height / 2;
+          const tLogoCenterX = tlRect.left + tlRect.width / 2;
+          const tLogoCenterY = tlRect.top + tlRect.height / 2;
+
+          const logoDeltaX = tLogoCenterX - cLogoCenterX;
+          const logoDeltaY = tLogoCenterY - cLogoCenterY;
+          const logoScale = Math.max(0.2, Math.min(1, tlRect.width / (clRect.width || 1)));
+
+          const cTextCenterX = ctRect.left + ctRect.width / 2;
+          const cTextCenterY = ctRect.top + ctRect.height / 2;
+          const tTextCenterX = ttRect.left + ttRect.width / 2;
+          const tTextCenterY = ttRect.top + ttRect.height / 2;
+
+          const textDeltaX = tTextCenterX - cTextCenterX;
+          const textDeltaY = tTextCenterY - cTextCenterY;
+          const textScale = Math.max(0.2, Math.min(1, ttRect.height / (ctRect.height || 1)));
+
+          setFlyTransform({
+            logoDeltaX,
+            logoDeltaY,
+            logoScale,
+            textDeltaX,
+            textDeltaY,
+            textScale
+          });
+        }
+        setPhase('flying');
+      }, 700);
+
+      // Mốc 3: Sau 700ms + 550ms = 1250ms hoàn tất animation
+      const timerDone = setTimeout(() => {
+        setPhase('done');
+        if (onComplete) onComplete();
+      }, 1250);
+
+      return () => {
+        clearTimeout(timerRingOut);
+        clearTimeout(timerFly);
+        clearTimeout(timerDone);
+      };
     }
-  }, [phase, onComplete]);
+  }, [phase === 'completed', onComplete]);
 
   if (phase === 'done') {
     return null;
@@ -239,13 +247,15 @@ export const InitialLoadingScreen = ({ isDataReady = false, onComplete, isLiquid
     transition: isFlying ? 'opacity 110ms ease-out' : 'none'
   };
 
-  // Viền trong thụt/thục ra ngoài và bị đường viền thường của logo cắt dần và hết
+  // Viền trong thụt ra ngoài và bị đường viền thường của logo cắt dần và hết
   const innerRingStyle = {
     transform: isRingOut ? 'scale(1.22)' : 'scale(1)',
     opacity: isRingOut ? 0 : 1,
     transition: isRingOut ? 'transform 350ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 350ms ease-out' : 'none',
     transformOrigin: 'center center'
   };
+
+  const strokeOffset = pathLength * (1 - Math.min(100, Math.max(0, progress)) / 100);
 
   return html`
     <div 
@@ -276,15 +286,15 @@ export const InitialLoadingScreen = ({ isDataReady = false, onComplete, isLiquid
           >
             <!-- Viền trong chạy theo tiến độ thực tế -->
             <path
+              ref=${pathRef}
               d=${squirclePath}
               fill="none"
               stroke="#4f46e5"
               strokeWidth="3.2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              pathLength="100"
-              strokeDasharray="100"
-              strokeDashoffset=${Math.max(0, 100 - progress)}
+              strokeDasharray=${pathLength}
+              strokeDashoffset=${strokeOffset}
             />
           </svg>
 
