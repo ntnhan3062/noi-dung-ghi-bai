@@ -25,7 +25,10 @@ if ('serviceWorker' in navigator) {
       const swScope = `${origin}${basePath}`;
 
       navigator.serviceWorker.register(swUrl, { scope: swScope })
-        .then((reg) => console.log('[Service Worker] Registration successful with scope: ', reg.scope))
+        .then((reg) => {
+          console.log('[Service Worker] Registration successful with scope: ', reg.scope);
+          reg.update();
+        })
         .catch((err) => console.error('[Service Worker] Registration failed: ', err));
     } catch (e) {
       console.error('[Service Worker] Setup error: ', e);
