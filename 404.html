@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="vi">
   <head>
@@ -12,6 +11,17 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&family=Lora:ital,wght@0,400;0,700;1,400&family=Playfair+Display:wght@700&family=Roboto+Mono&family=Tinos:wght@400;700&family=Arimo:wght@400;700&display=swap" rel="stylesheet">
 
+    <script>
+      (function() {
+        var origWarn = console.warn;
+        console.warn = function() {
+          if (arguments[0] && typeof arguments[0] === 'string' && arguments[0].indexOf('cdn.tailwindcss.com') !== -1) {
+            return;
+          }
+          origWarn.apply(console, arguments);
+        };
+      })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- TinyMCE Community Edition -->
@@ -137,27 +147,27 @@
           return;
         }
 
-        var scriptSrc = '/index.js';
-        
-        if (path.indexOf('/noi-dung-ghi-bai') === 0) {
-           scriptSrc = '/noi-dung-ghi-bai/index.js';
+        var candidates = [];
+        if (window.location.hostname.indexOf('github.io') !== -1 && path.indexOf('/noi-dung-ghi-bai') !== -1) {
+          candidates = ['/noi-dung-ghi-bai/index.js', '/index.js'];
         } else {
-           scriptSrc = '/index.js'; 
+          candidates = ['/index.js', '/noi-dung-ghi-bai/index.js'];
         }
 
-        var script = document.createElement('script');
-        script.type = 'module';
-        script.src = scriptSrc;
-        script.onerror = function() {
-           console.error("Failed to load app script from", scriptSrc);
-           if (scriptSrc !== '/index.js') {
-              var fb = document.createElement('script');
-              fb.type = 'module';
-              fb.src = '/index.js';
-              document.body.appendChild(fb);
-           }
-        };
-        document.body.appendChild(script);
+        function loadScript(idx) {
+          if (idx >= candidates.length) {
+            return;
+          }
+          var src = candidates[idx];
+          var script = document.createElement('script');
+          script.type = 'module';
+          script.src = src;
+          script.onerror = function() {
+            loadScript(idx + 1);
+          };
+          document.body.appendChild(script);
+        }
+        loadScript(0);
       })();
     </script>
   </body>

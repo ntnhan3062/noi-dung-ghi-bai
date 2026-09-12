@@ -1,5 +1,6 @@
 {
   "name": "Nội dung ghi bài",
   "description": "Ứng dụng quản lý nội dung ghi bài học tập theo cấu trúc phân cấp, hỗ trợ giao diện xem và chỉnh sửa bảo mật.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
