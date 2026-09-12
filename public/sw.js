@@ -1,4 +1,4 @@
-const CACHE_NAME = 'noi-dung-ghi-bai-v6';
+const CACHE_NAME = 'noi-dung-ghi-bai-v8';
 const ASSETS_TO_CACHE = [
   './',
   'index.html',
