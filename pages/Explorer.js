@@ -765,8 +765,9 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
           font_size_formats: '8pt 9pt 10pt 11pt 12pt 13pt 14pt 15pt 16pt 17pt 18pt 20pt 22pt 24pt 26pt 28pt 32pt 36pt 40pt 48pt 60pt 72pt',
           toolbar_sticky: false,
           autosave_interval: '30s',
-          height: '100%', 
-          min_height: 600,
+          height: 600, 
+          min_height: 350,
+          resize: true,
           content_css: [
             'https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&family=Lora:ital,wght@0,400;0,700;1,400&family=Tinos:wght@400;700&family=Arimo:wght@400;700&display=swap'
           ],
@@ -1046,6 +1047,113 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
                   }
                 }, { capture: true, passive: false });
               }
+
+              // Xử lý kéo resize chiều dọc mượt mà, không bị dừng khi chuột trượt ra ngoài chỗ click hoặc đi vào iframe
+              const container = editor.getContainer();
+              if (container) {
+                const resizeHandle = container.querySelector('.tox-statusbar__resize-handle');
+                if (resizeHandle) {
+                  resizeHandle.style.cursor = 'ns-resize';
+
+                  let isDragging = false;
+                  let startY = 0;
+                  let startHeight = 0;
+
+                  const updateResizeCornerClasses = (active, hovered) => {
+                    const mainCard = document.getElementById('lesson-main-card');
+                    const outerWrapper = document.getElementById('editor-outer-wrapper');
+
+                    if (active) {
+                      container.classList.add('is-resizing-handle-active');
+                      if (mainCard) mainCard.classList.add('is-tinymce-resize-active');
+                      if (outerWrapper) outerWrapper.classList.add('is-tinymce-resize-active');
+                    } else {
+                      container.classList.remove('is-resizing-handle-active');
+                      if (mainCard) mainCard.classList.remove('is-tinymce-resize-active');
+                      if (outerWrapper) outerWrapper.classList.remove('is-tinymce-resize-active');
+                    }
+
+                    if (hovered) {
+                      if (mainCard) mainCard.classList.add('is-tinymce-resize-hovered');
+                      if (outerWrapper) outerWrapper.classList.add('is-tinymce-resize-hovered');
+                    } else {
+                      if (mainCard) mainCard.classList.remove('is-tinymce-resize-hovered');
+                      if (outerWrapper) outerWrapper.classList.remove('is-tinymce-resize-hovered');
+                    }
+                  };
+
+                  const onPointerDown = (e) => {
+                    if (e.button !== undefined && e.button !== 0) return;
+                    if (editor.plugins && editor.plugins.fullscreen && editor.plugins.fullscreen.isFullscreen()) return;
+
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    isDragging = true;
+                    startY = e.clientY;
+                    startHeight = container.getBoundingClientRect().height;
+
+                    try {
+                      resizeHandle.setPointerCapture(e.pointerId);
+                    } catch (err) {}
+
+                    document.body.classList.add('tinymce-resizing-active');
+                    updateResizeCornerClasses(true, true);
+                  };
+
+                  const onPointerMove = (e) => {
+                    if (!isDragging) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const deltaY = e.clientY - startY;
+                    const newHeight = Math.max(350, Math.round(startHeight + deltaY));
+                    container.style.setProperty('height', `${newHeight}px`, 'important');
+                    const outerWrapper = document.getElementById('editor-outer-wrapper') || container.parentElement;
+                    if (outerWrapper) {
+                      outerWrapper.style.setProperty('height', `${newHeight}px`, 'important');
+                      outerWrapper.style.setProperty('flex', 'none', 'important');
+                    }
+                  };
+
+                  const onPointerUp = (e) => {
+                    if (!isDragging) return;
+                    isDragging = false;
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    try {
+                      if (resizeHandle.hasPointerCapture(e.pointerId)) {
+                        resizeHandle.releasePointerCapture(e.pointerId);
+                      }
+                    } catch (err) {}
+
+                    document.body.classList.remove('tinymce-resizing-active');
+                    const isHovering = resizeHandle.matches(':hover');
+                    updateResizeCornerClasses(false, isHovering);
+                  };
+
+                  resizeHandle.addEventListener('mouseenter', () => {
+                    updateResizeCornerClasses(isDragging, true);
+                  });
+
+                  resizeHandle.addEventListener('mouseleave', () => {
+                    if (!isDragging) {
+                      updateResizeCornerClasses(false, false);
+                    }
+                  });
+
+                  resizeHandle.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }, true);
+
+                  resizeHandle.addEventListener('pointerdown', onPointerDown, true);
+                  resizeHandle.addEventListener('pointermove', onPointerMove, true);
+                  resizeHandle.addEventListener('pointerup', onPointerUp, true);
+                  resizeHandle.addEventListener('pointercancel', onPointerUp, true);
+                }
+              }
             });
             editor.on('change keyup', () => { tempContentRef.current = editor.getContent(); });
           }
@@ -1053,11 +1161,13 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
       };
       setTimeout(initTinyMCE, 100);
     } else {
+      document.body.classList.remove('tinymce-resizing-active');
       if (window.tinymce && window.tinymce.get('editor-container')) window.tinymce.get('editor-container').remove();
       setEditorReady(false);
       tempContentRef.current = null;
     }
     return () => {
+      document.body.classList.remove('tinymce-resizing-active');
       shouldListenRef.current = false;
       if (window.tinymce && window.tinymce.get('editor-container')) {
         tempContentRef.current = window.tinymce.get('editor-container').getContent();
@@ -1484,7 +1594,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
             : 'border-b border-slate-100 bg-white sticky top-0';
 
         return html`
-            <div key="lesson-container" className=${`${containerStyle} overflow-hidden min-h-[700px] flex flex-col relative`}>
+            <div id="lesson-main-card" key="lesson-container" className=${`${containerStyle} overflow-hidden ${isEditingContent ? 'min-h-[350px]' : 'min-h-[700px]'} flex flex-col relative`}>
               <div className=${`px-6 md:px-12 py-6 md:py-8 flex justify-between items-start z-20 ${headerStyle}`}>
                 <div key="lesson-header-info" className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-3 flex-wrap">
@@ -1540,10 +1650,10 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
                 `}
               </div>
               
-              <div className="flex-1 relative flex flex-col h-full">
+              <div className=${`relative flex flex-col ${isEditingContent ? 'min-h-[350px]' : 'flex-1 h-full'}`}>
                 ${isEditingContent ? html`
-                  <div className="bg-white/80 select-text flex-1 flex flex-col h-full min-h-[600px]">
-                    <textarea id="editor-container" className="w-full h-full flex-1"></textarea>
+                  <div id="editor-outer-wrapper" className="bg-white/80 select-text flex flex-col min-h-[350px] h-[600px] w-full">
+                    <textarea id="editor-container" className="w-full h-full flex-1 min-h-[350px]"></textarea>
                   </div>
                 ` : html`
                   <div className=${`relative flex flex-col min-h-[500px] ${isLiquid ? 'bg-white/30' : 'bg-white'}`}>

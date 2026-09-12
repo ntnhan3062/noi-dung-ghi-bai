@@ -117,22 +117,26 @@ input, textarea, .select-text {
   background-color: rgba(255, 255, 255, 0.4) !important;
   backdrop-filter: blur(16px) !important;
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1) !important;
-  flex: 1 1 auto !important;
   width: 100% !important;
-  height: 100% !important;
-  min-height: 100% !important;
+  height: 600px;
+  min-height: 350px;
   display: flex !important;
   flex-direction: column !important;
+  transition: border-bottom-right-radius 0.15s ease-out !important;
 }
 
 .tox-tinymce.tox-fullscreen {
   border-radius: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
 }
 
 .tox-tinymce .tox-editor-container {
   flex: 1 1 auto !important;
   display: flex !important;
   flex-direction: column !important;
+  min-height: 0 !important;
   height: 100% !important;
 }
 
@@ -140,6 +144,7 @@ input, textarea, .select-text {
   flex: 1 1 auto !important;
   display: flex !important;
   flex-direction: column !important;
+  min-height: 0 !important;
   height: 100% !important;
 }
 
@@ -147,20 +152,74 @@ input, textarea, .select-text {
   flex: 1 1 auto !important;
   display: flex !important;
   flex-direction: column !important;
+  min-height: 0 !important;
   height: 100% !important;
 }
 
 .tox-tinymce .tox-edit-area iframe {
   flex: 1 1 auto !important;
   height: 100% !important;
+  width: 100% !important;
+}
+
+.tox-tinymce .tox-statusbar__resize-handle {
+  cursor: ns-resize !important;
+  touch-action: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+.tox-tinymce .tox-statusbar__resize-handle * {
+  pointer-events: none !important;
+}
+
+/* Đảm bảo khi đang kéo resize editor nhanh không bị iframe cướp sự kiện chuột hay bôi đen văn bản */
+body.tinymce-resizing-active {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  cursor: ns-resize !important;
+}
+
+body.tinymce-resizing-active * {
+  cursor: ns-resize !important;
+}
+
+body.tinymce-resizing-active iframe {
+  pointer-events: none !important;
 }
 
 .tox-tinymce .tox-statusbar {
   border-radius: 0 0 1.5rem 1.5rem !important;
+  transition: border-bottom-right-radius 0.15s ease-out !important;
 }
 
 .tox-tinymce.tox-fullscreen .tox-statusbar {
   border-radius: 0 !important;
+}
+
+/* Khi rê chuột (hover) hoặc đang kéo khu vực nắm kéo resize, góc dưới phải giảm bo tròn xuống 10px với hiệu ứng mượt nhanh */
+.tox-tinymce .tox-statusbar__resize-handle:hover ~ *,
+.tox-tinymce .tox-statusbar:has(.tox-statusbar__resize-handle:hover),
+.tox-tinymce:has(.tox-statusbar__resize-handle:hover) .tox-statusbar,
+.tox-tinymce.is-resizing-handle-active .tox-statusbar {
+  border-bottom-right-radius: 10px !important;
+}
+
+.tox-tinymce:has(.tox-statusbar__resize-handle:hover),
+.tox-tinymce.is-resizing-handle-active {
+  border-bottom-right-radius: 10px !important;
+}
+
+#lesson-main-card.is-tinymce-resize-hovered,
+#lesson-main-card.is-tinymce-resize-active,
+#editor-outer-wrapper.is-tinymce-resize-hovered,
+#editor-outer-wrapper.is-tinymce-resize-active {
+  border-bottom-right-radius: 10px !important;
+}
+
+#lesson-main-card,
+#editor-outer-wrapper {
+  transition: border-bottom-right-radius 0.15s ease-out !important;
 }
 
 /* YouTube-style Shimmer Animation for LaTeX Math */
