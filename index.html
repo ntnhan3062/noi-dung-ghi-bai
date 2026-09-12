@@ -11,14 +11,6 @@
 
       (function() {
         var l = window.location;
-        var isGithub = l.hostname.indexOf('github.io') !== -1;
-
-        // Tự động gán <base href> để mọi file style/script (như index.css, index.js, assets/...) luôn trỏ đúng nhánh /noi-dung-ghi-bai/
-        if (isGithub && !document.querySelector('base')) {
-          var base = document.createElement('base');
-          base.href = window.GITHUB_PAGES_BASE;
-          document.head.appendChild(base);
-        }
         // Xử lý chuyển hướng SPA từ 404.html hoặc các trang phụ
         if (l.search && l.search.indexOf('p=') !== -1) {
           var params = new URLSearchParams(l.search);

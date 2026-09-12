@@ -31,7 +31,7 @@ const getBasename = () => {
       return path.substring(0, index + '/special-application'.length);
   }
   
-  if (isGithub && path.includes(GITHUB_REPO_PATH)) {
+  if (isGithub) {
       return GITHUB_REPO_PATH;
   }
 
