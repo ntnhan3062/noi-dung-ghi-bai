@@ -227,18 +227,36 @@ export const InitialLoadingScreen = ({
       let allNodes = [];
       let selectedBg = null;
 
-      // Bước 1: Khởi tạo DOM & Font (+15% -> 15%)
+      // Bước 1: Khởi tạo DOM & Font chính (+15% -> 15%)
       try {
         if (document.fonts && document.fonts.ready) {
           await Promise.race([
             document.fonts.ready,
-            new Promise(res => setTimeout(res, 400))
+            new Promise(res => setTimeout(res, 350))
           ]);
         }
       } catch (e) {}
       updateTarget(15);
 
-      // Bước 2: Nạp Cấu hình hệ thống (+20% -> 35%)
+      // Bước 2: GET Nạp ngầm thư viện soạn thảo TinyMCE nằm trong tiến trình (+15% -> 30%)
+      try {
+        if (!window.tinymce) {
+          await Promise.race([
+            new Promise((resolve) => {
+              const script = document.createElement('script');
+              script.src = 'https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js';
+              script.referrerPolicy = 'origin';
+              script.onload = () => resolve();
+              script.onerror = () => resolve();
+              document.head.appendChild(script);
+            }),
+            new Promise(res => setTimeout(res, 2500))
+          ]);
+        }
+      } catch (e) {}
+      updateTarget(30);
+
+      // Bước 3: GET Nạp Cấu hình hệ thống (+20% -> 50%)
       try {
         fullConfig = await Promise.race([
           apiService.getFullConfig(),
@@ -261,9 +279,9 @@ export const InitialLoadingScreen = ({
           ui: { style: 'liquid', backButton: { enabled: true, view: true, edit: true, app: true }, zoom: { enabled: true, view: true, edit: true, app: false } } 
         };
       }
-      updateTarget(35);
+      updateTarget(50);
 
-      // Bước 3: Nạp Dữ liệu bài học & danh mục (+20% -> 55%)
+      // Bước 4: GET Nạp Dữ liệu bài học & danh mục (+20% -> 70%)
       try {
         const authPass = sessionStorage.getItem('auth_pass');
         allNodes = await Promise.race([
@@ -285,9 +303,9 @@ export const InitialLoadingScreen = ({
           }
         } catch {}
       }
-      updateTarget(55);
+      updateTarget(70);
 
-      // Bước 4: Nạp trước hình nền 100% nếu có (+20% -> 75%)
+      // Bước 5: GET Nạp trước hình nền 100% nếu có (+15% -> 85%)
       const bgActive = !!(fullConfig?.background && fullConfig?.background?.active);
       const bgImages = (fullConfig?.background && Array.isArray(fullConfig?.background?.images)) ? fullConfig.background.images : [];
       if (bgActive && bgImages.length > 0) {
@@ -301,7 +319,7 @@ export const InitialLoadingScreen = ({
           });
         }
       }
-      updateTarget(75);
+      updateTarget(85);
 
       // Bàn giao dữ liệu cho App ngay lập tức
       bootstrapCompletedPayloadRef.current = {
@@ -313,7 +331,7 @@ export const InitialLoadingScreen = ({
         onBootstrapData(bootstrapCompletedPayloadRef.current);
       }
 
-      // Bước 5: Chờ Explorer GET bài học/thư mục và render 100% (+20% -> 95%)
+      // Bước 6: Chờ Explorer GET bài học/thư mục và render (+10% -> 95%)
       await new Promise(resolve => {
         let checkCount = 0;
         const interval = setInterval(() => {
