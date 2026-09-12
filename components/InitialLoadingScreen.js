@@ -99,13 +99,15 @@ export const InitialLoadingScreen = ({
   useEffect(() => {
     let isMounted = true;
     let animId = null;
+    const startTime = Date.now();
+    const MIN_LOADING_TIME = 450; // Đảm bảo màn hình loading luôn hiện ít nhất 0.45s (lớn hơn 0.3s) khi load nhanh
 
     const updateTarget = (val) => {
       if (!isMounted) return;
       progressTargetRef.current = Math.max(progressTargetRef.current, Math.min(100, val));
     };
 
-    // Tiến trình tăng mượt mà (% tiến độ)
+    // Tiến trình tăng mượt mà (% tiến độ) - khống chế tốc độ tăng tối đa để tiến trình luôn hiện rõ
     const stepLoop = () => {
       if (!isMounted) return;
 
@@ -114,7 +116,8 @@ export const InitialLoadingScreen = ({
 
       if (current < target) {
         const diff = target - current;
-        const step = Math.max(0.6, diff * 0.15);
+        // Khống chế bước tăng tối đa 2.5% mỗi frame -> Đảm bảo cần ít nhất 40 frames (~600ms) để chạy từ 0 đến 100%
+        const step = Math.min(2.5, Math.max(0.6, diff * 0.08));
         const next = Math.min(100, current + step);
         currentProgressRef.current = next;
         setProgress(next);
@@ -242,6 +245,12 @@ export const InitialLoadingScreen = ({
           });
         });
       });
+
+      // Bắt buộc giữ hiển thị tiến trình loading tối thiểu ít nhất 0.45s (ngay cả khi load siêu nhanh)
+      const elapsed = Date.now() - startTime;
+      if (elapsed < MIN_LOADING_TIME) {
+        await new Promise(resolve => setTimeout(resolve, MIN_LOADING_TIME - elapsed));
+      }
 
       updateTarget(100);
     };
