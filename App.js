@@ -15,6 +15,7 @@ import { ChevronDown, Settings as SettingsIcon, Trash2, Edit2, GripVertical } fr
 import { StatusPage } from './components/StatusPage.js';
 import { ErrorBoundary } from './components/ErrorBoundary.js';
 import { LayoutErrorProvider, useLayoutError } from './context/LayoutErrorContext.js';
+import { InitialLoadingScreen } from './components/InitialLoadingScreen.js';
 
 const getBasename = () => {
   const path = window.location.pathname;
@@ -94,7 +95,7 @@ const AnimatedRoutes = ({ isAppMode, uiConfig }) => {
     `;
 };
 
-const Layout = ({ children, isAppMode, uiConfig, currentBg, isOnline }) => {
+const Layout = ({ children, isAppMode, uiConfig, currentBg, isOnline, isInitialLoading }) => {
   const { layoutError } = useLayoutError();
   const location = useLocation();
   const navigate = useNavigate();
@@ -214,12 +215,22 @@ const Layout = ({ children, isAppMode, uiConfig, currentBg, isOnline }) => {
       <header className=${`sticky top-0 z-30 transition-all duration-300 ${isAppMode ? 'h-16' : 'h-20'} ${isLiquid ? 'bg-white/60 backdrop-blur-xl border-b border-white/20' : 'bg-white border-b border-gray-200'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
           <div className="flex items-center gap-4 cursor-pointer select-none active:scale-95 transition-transform group" onClick=${handleSecretEntry}>
-            <div key="logo-container" className=${`relative p-2.5 rounded-2xl border transition-all duration-500 overflow-hidden ${isLiquid ? 'bg-white/20 backdrop-blur-md border-white/50 shadow-glass group-hover:shadow-neon' : 'bg-white border-slate-200 shadow-sm'} ${secretCount > 0 ? 'ring-2 ring-indigo-400' : ''}`}>
+            <div 
+              id="header-logo-container" 
+              key="logo-container" 
+              className=${`relative p-2.5 rounded-2xl border transition-all duration-500 overflow-hidden ${isLiquid ? 'bg-white/20 backdrop-blur-md border-white/50 shadow-glass group-hover:shadow-neon' : 'bg-white border-slate-200 shadow-sm'} ${secretCount > 0 ? 'ring-2 ring-indigo-400' : ''} ${isInitialLoading ? 'opacity-0 pointer-events-none' : 'opacity-100 transition-opacity duration-300'}`}
+            >
               ${isLiquid && html`<div key="liquid-bg" className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>`}
               <${BookOpen} key="logo-icon" className=${`relative z-10 text-indigo-600 drop-shadow-sm ${isAppMode ? "w-5 h-5" : "w-7 h-7"}`} strokeWidth=${2.5} />
             </div>
             <div key="logo-text" className="flex flex-col">
-                <span key="main-label" className=${`font-sans font-bold tracking-tight drop-shadow-sm ${isAppMode ? 'text-xl' : 'text-2xl'} ${isLiquid ? 'bg-clip-text text-transparent bg-gradient-to-r from-indigo-900 to-violet-900' : 'text-slate-800'}`}>${layoutError ? 'Nội dung bài học' : 'Nội dung ghi bài'}</span>
+                <span 
+                  id="header-main-label" 
+                  key="main-label" 
+                  className=${`font-sans font-bold tracking-tight drop-shadow-sm ${isAppMode ? 'text-xl' : 'text-2xl'} ${isLiquid ? 'bg-clip-text text-transparent bg-gradient-to-r from-indigo-900 to-violet-900' : 'text-slate-800'} ${isInitialLoading ? 'opacity-0 pointer-events-none' : 'opacity-100 transition-opacity duration-300'}`}
+                >
+                  ${layoutError ? 'Nội dung bài học' : 'Nội dung ghi bài'}
+                </span>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -319,6 +330,8 @@ const App = () => {
   const [isAuthorized, setIsAuthorized] = useState(true);
   const isAppMode = window.location.pathname.includes('/special-application');
   const [isOnline, setIsOnline] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isDataReady, setIsDataReady] = useState(false);
   const [uiConfig, setUiConfig] = useState(() => {
     let localBackButton = { enabled: true, view: true, edit: true, app: true };
     try {
@@ -410,6 +423,7 @@ const App = () => {
       if (bgActive && Array.isArray(bgImages) && bgImages.length > 0) {
         setCurrentBg(bgImages[Math.floor(Math.random() * bgImages.length)]);
       }
+      setIsDataReady(true);
   }, []);
 
   useEffect(() => {
@@ -508,9 +522,16 @@ const App = () => {
         <${BrowserRouter} basename=${getBasename()}>
           <${ClassProvider}>
             <${BreadcrumbProvider}>
-              <${Layout} isAppMode=${isAppMode} uiConfig=${uiConfig} currentBg=${currentBg} isOnline=${isOnline}>
+              <${Layout} isAppMode=${isAppMode} uiConfig=${uiConfig} currentBg=${currentBg} isOnline=${isOnline} isInitialLoading=${isInitialLoading}>
                  <${AnimatedRoutes} isAppMode=${isAppMode} uiConfig=${uiConfig} />
               </${Layout}>
+              ${isInitialLoading && html`
+                <${InitialLoadingScreen} 
+                  isDataReady=${isDataReady} 
+                  isLiquid=${uiConfig.style === 'liquid'}
+                  onComplete=${() => setIsInitialLoading(false)}
+                />
+              `}
             </${BreadcrumbProvider}>
           </${ClassProvider}>
         </${BrowserRouter}>
