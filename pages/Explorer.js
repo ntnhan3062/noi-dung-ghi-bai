@@ -1051,108 +1051,120 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
               // Xử lý kéo resize chiều dọc mượt mà, không bị dừng khi chuột trượt ra ngoài chỗ click hoặc đi vào iframe
               const container = editor.getContainer();
               if (container) {
-                const resizeHandle = container.querySelector('.tox-statusbar__resize-handle');
-                if (resizeHandle) {
-                  resizeHandle.style.cursor = 'ns-resize';
+                let isDragging = false;
+                let startY = 0;
+                let startHeight = 0;
 
-                  let isDragging = false;
-                  let startY = 0;
-                  let startHeight = 0;
+                const updateResizeCornerClasses = (active, hovered) => {
+                  const mainCard = document.getElementById('lesson-main-card');
+                  const outerWrapper = document.getElementById('editor-outer-wrapper');
 
-                  const updateResizeCornerClasses = (active, hovered) => {
-                    const mainCard = document.getElementById('lesson-main-card');
-                    const outerWrapper = document.getElementById('editor-outer-wrapper');
+                  if (active) {
+                    container.classList.add('is-resizing-handle-active');
+                    if (mainCard) mainCard.classList.add('is-tinymce-resize-active');
+                    if (outerWrapper) outerWrapper.classList.add('is-tinymce-resize-active');
+                  } else {
+                    container.classList.remove('is-resizing-handle-active');
+                    if (mainCard) mainCard.classList.remove('is-tinymce-resize-active');
+                    if (outerWrapper) outerWrapper.classList.remove('is-tinymce-resize-active');
+                  }
 
-                    if (active) {
-                      container.classList.add('is-resizing-handle-active');
-                      if (mainCard) mainCard.classList.add('is-tinymce-resize-active');
-                      if (outerWrapper) outerWrapper.classList.add('is-tinymce-resize-active');
-                    } else {
-                      container.classList.remove('is-resizing-handle-active');
-                      if (mainCard) mainCard.classList.remove('is-tinymce-resize-active');
-                      if (outerWrapper) outerWrapper.classList.remove('is-tinymce-resize-active');
-                    }
+                  if (hovered) {
+                    if (mainCard) mainCard.classList.add('is-tinymce-resize-hovered');
+                    if (outerWrapper) outerWrapper.classList.add('is-tinymce-resize-hovered');
+                  } else {
+                    if (mainCard) mainCard.classList.remove('is-tinymce-resize-hovered');
+                    if (outerWrapper) outerWrapper.classList.remove('is-tinymce-resize-hovered');
+                  }
+                };
 
-                    if (hovered) {
-                      if (mainCard) mainCard.classList.add('is-tinymce-resize-hovered');
-                      if (outerWrapper) outerWrapper.classList.add('is-tinymce-resize-hovered');
-                    } else {
-                      if (mainCard) mainCard.classList.remove('is-tinymce-resize-hovered');
-                      if (outerWrapper) outerWrapper.classList.remove('is-tinymce-resize-hovered');
-                    }
-                  };
+                const isResizeTarget = (el) => {
+                  return !!(el && (el.closest?.('.tox-statusbar__resize-handle') || el.closest?.('.tox-statusbar__right-container')));
+                };
 
-                  const onPointerDown = (e) => {
-                    if (e.button !== undefined && e.button !== 0) return;
-                    if (editor.plugins && editor.plugins.fullscreen && editor.plugins.fullscreen.isFullscreen()) return;
-
-                    e.preventDefault();
-                    e.stopPropagation();
-
-                    isDragging = true;
-                    startY = e.clientY;
-                    startHeight = container.getBoundingClientRect().height;
-
-                    try {
-                      resizeHandle.setPointerCapture(e.pointerId);
-                    } catch (err) {}
-
-                    document.body.classList.add('tinymce-resizing-active');
-                    updateResizeCornerClasses(true, true);
-                  };
-
-                  const onPointerMove = (e) => {
-                    if (!isDragging) return;
-                    e.preventDefault();
-                    e.stopPropagation();
-
-                    const deltaY = e.clientY - startY;
-                    const newHeight = Math.max(350, Math.round(startHeight + deltaY));
-                    container.style.setProperty('height', `${newHeight}px`, 'important');
-                    const outerWrapper = document.getElementById('editor-outer-wrapper') || container.parentElement;
-                    if (outerWrapper) {
-                      outerWrapper.style.setProperty('height', `${newHeight}px`, 'important');
-                      outerWrapper.style.setProperty('flex', 'none', 'important');
-                    }
-                  };
-
-                  const onPointerUp = (e) => {
-                    if (!isDragging) return;
-                    isDragging = false;
-                    e.preventDefault();
-                    e.stopPropagation();
-
-                    try {
-                      if (resizeHandle.hasPointerCapture(e.pointerId)) {
-                        resizeHandle.releasePointerCapture(e.pointerId);
-                      }
-                    } catch (err) {}
-
-                    document.body.classList.remove('tinymce-resizing-active');
-                    const isHovering = resizeHandle.matches(':hover');
-                    updateResizeCornerClasses(false, isHovering);
-                  };
-
-                  resizeHandle.addEventListener('mouseenter', () => {
+                // Bắt sự kiện hover thông qua delegation trên container (hoạt động 100% mọi trình duyệt dù phần tử render muộn)
+                container.addEventListener('mouseover', (e) => {
+                  if (isResizeTarget(e.target)) {
                     updateResizeCornerClasses(isDragging, true);
-                  });
+                  }
+                });
 
-                  resizeHandle.addEventListener('mouseleave', () => {
-                    if (!isDragging) {
-                      updateResizeCornerClasses(false, false);
-                    }
-                  });
+                container.addEventListener('mouseout', (e) => {
+                  if (!isDragging && !isResizeTarget(e.relatedTarget)) {
+                    updateResizeCornerClasses(false, false);
+                  }
+                });
 
-                  resizeHandle.addEventListener('mousedown', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }, true);
+                const onPointerDown = (e) => {
+                  const handle = e.target && e.target.closest?.('.tox-statusbar__resize-handle');
+                  if (!handle) return;
+                  if (e.button !== undefined && e.button !== 0) return;
+                  if (editor.plugins && editor.plugins.fullscreen && editor.plugins.fullscreen.isFullscreen()) return;
 
-                  resizeHandle.addEventListener('pointerdown', onPointerDown, true);
-                  resizeHandle.addEventListener('pointermove', onPointerMove, true);
-                  resizeHandle.addEventListener('pointerup', onPointerUp, true);
-                  resizeHandle.addEventListener('pointercancel', onPointerUp, true);
-                }
+                  e.preventDefault();
+                  e.stopPropagation();
+
+                  isDragging = true;
+                  startY = e.clientY;
+                  startHeight = container.getBoundingClientRect().height;
+
+                  try {
+                    handle.setPointerCapture(e.pointerId);
+                  } catch (err) {}
+
+                  document.body.classList.add('tinymce-resizing-active');
+                  updateResizeCornerClasses(true, true);
+                };
+
+                const onPointerMove = (e) => {
+                  if (!isDragging) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+
+                  const deltaY = e.clientY - startY;
+                  const newHeight = Math.max(350, Math.round(startHeight + deltaY));
+                  container.style.setProperty('height', `${newHeight}px`, 'important');
+                  const outerWrapper = document.getElementById('editor-outer-wrapper') || container.parentElement;
+                  if (outerWrapper) {
+                    outerWrapper.style.setProperty('height', `${newHeight}px`, 'important');
+                    outerWrapper.style.setProperty('flex', 'none', 'important');
+                  }
+                };
+
+                const onPointerUp = (e) => {
+                  if (!isDragging) return;
+                  isDragging = false;
+                  e.preventDefault();
+                  e.stopPropagation();
+
+                  document.body.classList.remove('tinymce-resizing-active');
+                  const hovered = isResizeTarget(document.elementFromPoint(e.clientX, e.clientY));
+                  updateResizeCornerClasses(false, hovered);
+                };
+
+                container.addEventListener('pointerdown', onPointerDown, true);
+                window.addEventListener('pointermove', onPointerMove, true);
+                window.addEventListener('pointerup', onPointerUp, true);
+                window.addEventListener('pointercancel', onPointerUp, true);
+
+                // Đồng thời tìm kiếm và gán trực tiếp lên resizeHandle
+                const attachHandleDirectly = () => {
+                  const resizeHandle = container.querySelector('.tox-statusbar__resize-handle');
+                  if (resizeHandle) {
+                    resizeHandle.style.cursor = 'ns-resize';
+                    resizeHandle.addEventListener('mouseenter', () => updateResizeCornerClasses(isDragging, true));
+                    resizeHandle.addEventListener('mouseleave', () => {
+                      if (!isDragging) updateResizeCornerClasses(false, false);
+                    });
+                    resizeHandle.addEventListener('mousedown', (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }, true);
+                  }
+                };
+                attachHandleDirectly();
+                setTimeout(attachHandleDirectly, 200);
+                setTimeout(attachHandleDirectly, 600);
               }
             });
             editor.on('change keyup', () => { tempContentRef.current = editor.getContent(); });

@@ -167,6 +167,12 @@ input, textarea, .select-text {
   touch-action: none !important;
   user-select: none !important;
   -webkit-user-select: none !important;
+  min-width: 28px !important;
+  min-height: 24px !important;
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: flex-end !important;
+  padding: 4px 6px 4px 4px !important;
 }
 
 .tox-tinymce .tox-statusbar__resize-handle * {
@@ -197,29 +203,51 @@ body.tinymce-resizing-active iframe {
   border-radius: 0 !important;
 }
 
-/* Khi rê chuột (hover) hoặc đang kéo khu vực nắm kéo resize, góc dưới phải giảm bo tròn xuống 10px với hiệu ứng mượt nhanh */
-.tox-tinymce .tox-statusbar__resize-handle:hover ~ *,
-.tox-tinymce .tox-statusbar:has(.tox-statusbar__resize-handle:hover),
-.tox-tinymce:has(.tox-statusbar__resize-handle:hover) .tox-statusbar,
+/* Đảm bảo bo tròn góc dưới và hiệu ứng chuyển tiếp mượt mà cho tất cả các tầng chứa */
+#lesson-main-card,
+#editor-outer-wrapper,
+.tox-tinymce,
+.tox-tinymce .tox-statusbar {
+  transition: border-bottom-right-radius 0.15s ease-out !important;
+}
+
+/* 1. Khi có class từ JavaScript (hoạt động chắc chắn trên mọi trình duyệt) */
+#lesson-main-card.is-tinymce-resize-hovered,
+#lesson-main-card.is-tinymce-resize-active,
+#editor-outer-wrapper.is-tinymce-resize-hovered,
+#editor-outer-wrapper.is-tinymce-resize-active,
+.tox-tinymce.is-resizing-handle-active,
 .tox-tinymce.is-resizing-handle-active .tox-statusbar {
   border-bottom-right-radius: 10px !important;
 }
 
+/* 2. Pure CSS :has() cho thẻ bài học chính (#lesson-main-card) */
+#lesson-main-card:has(.tox-statusbar__resize-handle:hover),
+#lesson-main-card:has(.tox-statusbar__right-container:hover),
+#lesson-main-card:has(.tox-statusbar__resize-handle:active),
+#lesson-main-card:has(.is-resizing-handle-active) {
+  border-bottom-right-radius: 10px !important;
+}
+
+/* 3. Pure CSS :has() cho khung wrapper ngoài (#editor-outer-wrapper) */
+#editor-outer-wrapper:has(.tox-statusbar__resize-handle:hover),
+#editor-outer-wrapper:has(.tox-statusbar__right-container:hover),
+#editor-outer-wrapper:has(.tox-statusbar__resize-handle:active),
+#editor-outer-wrapper:has(.is-resizing-handle-active) {
+  border-bottom-right-radius: 10px !important;
+}
+
+/* 4. Pure CSS :has() cho TinyMCE và statusbar */
 .tox-tinymce:has(.tox-statusbar__resize-handle:hover),
-.tox-tinymce.is-resizing-handle-active {
+.tox-tinymce:has(.tox-statusbar__right-container:hover),
+.tox-tinymce:has(.tox-statusbar__resize-handle:active) {
   border-bottom-right-radius: 10px !important;
 }
 
-#lesson-main-card.is-tinymce-resize-hovered,
-#lesson-main-card.is-tinymce-resize-active,
-#editor-outer-wrapper.is-tinymce-resize-hovered,
-#editor-outer-wrapper.is-tinymce-resize-active {
+.tox-tinymce:has(.tox-statusbar__resize-handle:hover) .tox-statusbar,
+.tox-tinymce:has(.tox-statusbar__right-container:hover) .tox-statusbar,
+.tox-tinymce:has(.tox-statusbar__resize-handle:active) .tox-statusbar {
   border-bottom-right-radius: 10px !important;
-}
-
-#lesson-main-card,
-#editor-outer-wrapper {
-  transition: border-bottom-right-radius 0.15s ease-out !important;
 }
 
 /* YouTube-style Shimmer Animation for LaTeX Math */
