@@ -1,7 +1,6 @@
 import React from 'react';
 import { html } from '../utils/html.js';
 import { ShieldAlert, WifiOff, FileX, AlertTriangle, Search, Home } from 'lucide-react';
-import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { useLayoutError } from '../context/LayoutErrorContext.js';
 
@@ -81,14 +80,9 @@ export const StatusPage = ({ type, message, subMessage, icon: CustomIcon, uiStyl
     return html`
       <div className=${mainBgClass}>
         <div className=${cardClass} style=${{ width: 'fit-content' }}>
-          <${motion.div}
-            initial=${{ y: 0 }}
-            animate=${{ y: [-12, 0, -12] }}
-            transition=${{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-            className=${iconBgClass}
-          >
+          <div className="${iconBgClass} animate-float">
             <${Icon} size=${48} className="md:w-14 md:h-14" strokeWidth=${2.5} />
-          </${motion.div}>
+          </div>
           <h1 className=${`text-2xl md:text-3xl font-sans font-black ${config.color} mb-6 tracking-tight drop-shadow-sm`}>${message || config.title}</h1>
           <div className="flex flex-col gap-4">
             <p className="text-slate-600 max-w-sm mx-auto font-medium text-base md:text-lg leading-relaxed">
@@ -119,14 +113,9 @@ export const StatusPage = ({ type, message, subMessage, icon: CustomIcon, uiStyl
 
   return html`
     <div className=${cardClassB}>
-      <${motion.div}
-        initial=${{ y: 0 }}
-        animate=${{ y: [-12, 0, -12] }}
-        transition=${{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-        className=${iconBgClassB}
-      >
+      <div className="${iconBgClassB} animate-float">
         <${Icon} size=${56} strokeWidth=${2.5} />
-      </${motion.div}>
+      </div>
       <h1 className=${`text-3xl md:text-4xl font-sans font-black ${config.color} mb-6 tracking-tight drop-shadow-sm`}>${message || config.title}</h1>
       <div className="flex flex-col gap-4">
         <p className="text-slate-600 max-w-lg mx-auto font-medium text-lg md:text-xl leading-relaxed">
