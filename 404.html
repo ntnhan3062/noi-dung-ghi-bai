@@ -5,19 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nội dung ghi bài</title>
     <script type="text/javascript">
+      // Biến lưu nhánh URL cố định cho GitHub Pages
+      var GITHUB_BASE_URL = 'https://ntnhan3062.github.io/noi-dung-ghi-bai/';
+      var GITHUB_REPO_PATH = '/noi-dung-ghi-bai';
+
       // GitHub Pages SPA Single Page App Redirector
       (function() {
         var l = window.location;
         var pathname = l.pathname;
         var isGithub = l.hostname.indexOf('github.io') !== -1;
-        var repoName = '';
-        
-        if (isGithub) {
-          var segments = pathname.split('/').filter(Boolean);
-          if (segments.length > 0) {
-            repoName = '/' + segments[0];
-          }
-        }
+        var repoName = isGithub ? GITHUB_REPO_PATH : '';
         
         var routePath = pathname;
         if (repoName && routePath.indexOf(repoName) === 0) {

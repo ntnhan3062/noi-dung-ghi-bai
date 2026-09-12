@@ -5,6 +5,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no" />
     <script>
+      // Biến lưu nhánh gốc cố định cho GitHub Pages
+      window.GITHUB_PAGES_BASE = 'https://ntnhan3062.github.io/noi-dung-ghi-bai/';
+      window.GITHUB_REPO_PATH = '/noi-dung-ghi-bai';
+
       (function() {
         var l = window.location;
         // Xử lý chuyển hướng SPA từ 404.html hoặc các trang phụ
@@ -15,13 +19,7 @@
             params.delete('p');
             var newSearch = params.toString() ? ('?' + params.toString()) : '';
             var isGithub = l.hostname.indexOf('github.io') !== -1;
-            var repoPrefix = '';
-            if (isGithub) {
-              var segments = l.pathname.split('/').filter(Boolean);
-              if (segments.length > 0) {
-                repoPrefix = '/' + segments[0];
-              }
-            }
+            var repoPrefix = isGithub ? window.GITHUB_REPO_PATH : '';
             var targetPath = repoPrefix + decodeURIComponent(redirectPath) + newSearch + l.hash;
             window.history.replaceState(null, null, targetPath);
           }
@@ -29,8 +27,8 @@
 
         var path = window.location.pathname;
         var cleanPath = path.replace(/\/+$/, '');
-        if (cleanPath === '/noi-dung-ghi-bai' || path === '/noi-dung-ghi-bai/index.html') {
-          var target = window.location.origin + '/noi-dung-ghi-bai/view/' + window.location.search + window.location.hash;
+        if (cleanPath === window.GITHUB_REPO_PATH || path === window.GITHUB_REPO_PATH + '/index.html') {
+          var target = window.location.origin + window.GITHUB_REPO_PATH + '/view/' + window.location.search + window.location.hash;
           window.location.replace(target);
         }
       })();
@@ -422,6 +420,6 @@
   </head>
   <body class="bg-slate-50 text-slate-900 font-sans antialiased select-none selection:bg-indigo-200 selection:text-indigo-900">
     <div id="root"></div>
-    <script type="module" src="/index.js"></script>
+    <script type="module" src="./index.js"></script>
   </body>
 </html>

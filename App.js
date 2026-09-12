@@ -17,6 +17,10 @@ import { ErrorBoundary } from './components/ErrorBoundary.js';
 import { LayoutErrorProvider, useLayoutError } from './context/LayoutErrorContext.js';
 import { InitialLoadingScreen } from './components/InitialLoadingScreen.js';
 
+// Biến lưu nhánh URL cố định cho GitHub Pages
+export const GITHUB_BASE_URL = 'https://ntnhan3062.github.io/noi-dung-ghi-bai/';
+export const GITHUB_REPO_PATH = '/noi-dung-ghi-bai';
+
 const getBasename = () => {
   const path = window.location.pathname;
   const hostname = window.location.hostname;
@@ -27,8 +31,8 @@ const getBasename = () => {
       return path.substring(0, index + '/special-application'.length);
   }
   
-  if (isGithub && path.includes('/noi-dung-ghi-bai')) {
-      return '/noi-dung-ghi-bai';
+  if (isGithub && path.includes(GITHUB_REPO_PATH)) {
+      return GITHUB_REPO_PATH;
   }
 
   return '';

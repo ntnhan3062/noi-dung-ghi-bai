@@ -6,6 +6,8 @@ import App from './App.js';
 import { ErrorBoundary } from './components/ErrorBoundary.js';
 
 // Register Service Worker for ultimate offline capability
+const GITHUB_REPO_PATH = '/noi-dung-ghi-bai';
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     try {
@@ -13,11 +15,8 @@ if ('serviceWorker' in navigator) {
       let basePath = '/';
 
       if (hostname.includes('github.io')) {
-        // Trên GitHub Pages (ví dụ: username.github.io/noi-dung-ghi-bai/view/), segment đầu tiên là tên repository
-        const segments = pathname.split('/').filter(Boolean);
-        if (segments.length > 0) {
-          basePath = `/${segments[0]}/`;
-        }
+        // Luôn gán nhánh cố định /noi-dung-ghi-bai/ khi chạy trên GitHub Pages
+        basePath = `${GITHUB_REPO_PATH}/`;
       } else if (pathname.includes('/special-application')) {
         const idx = pathname.indexOf('/special-application');
         basePath = pathname.substring(0, idx + '/special-application'.length) + '/';
