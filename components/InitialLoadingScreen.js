@@ -27,7 +27,10 @@ export const InitialLoadingScreen = ({
   layoutError = false,
   isAppMode = false
 }) => {
-  const [progress, setProgress] = useState(0);
+  const bootProgress = (typeof window !== 'undefined' && window.__BOOT_PROGRESS__) ? window.__BOOT_PROGRESS__ : 0;
+  const bootTarget = (typeof window !== 'undefined' && window.__BOOT_TARGET__) ? Math.max(30, window.__BOOT_TARGET__) : 30;
+
+  const [progress, setProgress] = useState(bootProgress);
   const [phase, setPhase] = useState('loading'); // 'loading' | 'completed' | 'ring-out' | 'exit' | 'fading-bg' | 'done'
 
   const logoRef = useRef(null);
@@ -35,8 +38,8 @@ export const InitialLoadingScreen = ({
   const pathRef = useRef(null);
   const [pathLength, setPathLength] = useState(320);
 
-  const progressTargetRef = useRef(5);
-  const currentProgressRef = useRef(0);
+  const progressTargetRef = useRef(bootTarget);
+  const currentProgressRef = useRef(bootProgress);
   
   const outroStartedRef = useRef(false);
   const outroActiveRef = useRef(false);
@@ -63,8 +66,16 @@ export const InitialLoadingScreen = ({
     }
   }, [isContentReady]);
 
-  // 1. Tính toán chính xác chu vi của đường viền SVG
+  // 1. Tính toán chính xác chu vi của đường viền SVG & Chuyển giao quyền từ Vanilla JS sang React
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.__BOOT_REACT_MOUNTED__ = true;
+      const staticElem = document.getElementById('initial-boot-static');
+      if (staticElem) {
+        staticElem.remove();
+      }
+    }
+
     if (pathRef.current) {
       try {
         const len = pathRef.current.getTotalLength();
