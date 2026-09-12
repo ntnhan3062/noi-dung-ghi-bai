@@ -6,34 +6,41 @@ import { BookOpen } from 'lucide-react';
  * Màn hình loading ban đầu:
  * - Nền trắng
  * - Ở giữa có logo và bên dưới logo là chữ "Nội dung ghi bài"
- * - Logo có 1 viền trong chạy từ chính giữa cạnh trên (0%) theo chiều kim đồng hồ quanh viền trong của logo đến 100% theo tiến độ thực tế
+ * - Định dạng của logo và chữ đồng nhất 100% với logo trên header
+ * - Logo có viền trong chạy từ chính giữa cạnh trên (0%) theo chiều kim đồng hồ quanh viền trong của logo đến 100% theo tiến độ thực tế
  * - Sau khi 100%, đợi 0.2s rồi ẩn viền trong mượt mà (thụt ra ngoài và bị đường viền thường của logo cắt dần rồi biến mất)
- * - Sau đó 0.5s, logo thu nhỏ và di chuyển về vị trí trên header, chữ cũng thu nhỏ và di chuyển về vị trí trên header
- * - Nền mờ và biến mất hoàn toàn ngay khi logo và chữ di chuyển được 20% chặng đường
- * - Chỉ hiện khi load ban đầu (truy cập link hoặc tải lại trang)
+ * - Sau đó:
+ *   + Logo thu nhỏ lại (scale down) và fade out
+ *   + Chữ đặt ranh giới ngay đầu (overflow-hidden) và trượt lên trên biến mất
+ *   + Khi cả 2 hiệu ứng chạy được 70% thì nền bắt đầu mờ dần cho đến khi 100% thì ẩn hoàn toàn màn hình loading
  */
-export const InitialLoadingScreen = ({ isDataReady = false, onComplete, isLiquid = true, layoutError = false }) => {
+export const InitialLoadingScreen = ({ 
+  isDataReady = false, 
+  currentBg = null,
+  bgActive = false,
+  onComplete, 
+  isLiquid = true, 
+  layoutError = false,
+  isAppMode = false
+}) => {
   const [progress, setProgress] = useState(0);
-  const [phase, setPhase] = useState('loading'); // 'loading' | 'completed' | 'ring-out' | 'flying' | 'done'
-  const [flyTransform, setFlyTransform] = useState({
-    logoDeltaX: 0,
-    logoDeltaY: 0,
-    logoScale: 1,
-    textDeltaX: 0,
-    textDeltaY: 0,
-    textScale: 1
-  });
+  const [phase, setPhase] = useState('loading'); // 'loading' | 'completed' | 'ring-out' | 'exit' | 'fading-bg' | 'done'
 
   const logoRef = useRef(null);
   const textRef = useRef(null);
   const pathRef = useRef(null);
-  const [pathLength, setPathLength] = useState(266.5);
+  const [pathLength, setPathLength] = useState(320);
 
-  const progressTargetRef = useRef(20);
+  const progressTargetRef = useRef(15);
   const currentProgressRef = useRef(0);
   const outroStartedRef = useRef(false);
 
-  // Tính toán chính xác chu vi của đường viền SVG
+  // Trạng thái các thành phần cần nạp
+  const fontReadyRef = useRef(false);
+  const bgReadyRef = useRef(!bgActive || !currentBg);
+  const domRenderReadyRef = useRef(false);
+
+  // 1. Tính toán chính xác chu vi của đường viền SVG
   useEffect(() => {
     if (pathRef.current) {
       try {
@@ -45,96 +52,108 @@ export const InitialLoadingScreen = ({ isDataReady = false, onComplete, isLiquid
     }
   }, []);
 
-  // Hàm kích hoạt chuỗi hiệu ứng kết thúc loading (Outro sequence)
+  // 2. Tính toán tiến trình thực tế dựa trên toàn bộ các thành phần (DOM, Font, Data, Nền, Render)
+  const calculateCombinedProgress = () => {
+    let p = 15; // Khởi tạo DOM ban đầu
+
+    if (fontReadyRef.current) p += 20; // Nạp font xong: +20%
+    if (isDataReady) p += 35; // Nạp dữ liệu bài học / config: +35%
+    if (bgReadyRef.current) p += 20; // Nạp hình nền (nếu có): +20%
+    if (domRenderReadyRef.current) p += 10; // Render thành phần DOM hoàn tất: +10%
+
+    return Math.min(100, p);
+  };
+
+  // 3. Theo dõi nạp hình nền nếu có
+  useEffect(() => {
+    if (bgActive && currentBg) {
+      bgReadyRef.current = false;
+      const img = new Image();
+      img.src = currentBg;
+      img.onload = () => {
+        bgReadyRef.current = true;
+        progressTargetRef.current = Math.max(progressTargetRef.current, calculateCombinedProgress());
+      };
+      img.onerror = () => {
+        bgReadyRef.current = true;
+        progressTargetRef.current = Math.max(progressTargetRef.current, calculateCombinedProgress());
+      };
+    } else {
+      bgReadyRef.current = true;
+      progressTargetRef.current = Math.max(progressTargetRef.current, calculateCombinedProgress());
+    }
+  }, [bgActive, currentBg]);
+
+  // 4. Theo dõi nạp dữ liệu bài học / cấu hình
+  useEffect(() => {
+    if (isDataReady) {
+      progressTargetRef.current = Math.max(progressTargetRef.current, calculateCombinedProgress());
+    }
+  }, [isDataReady]);
+
+  // 5. Kích hoạt chuỗi hiệu ứng kết thúc loading (Outro sequence)
   const triggerOutro = () => {
     if (outroStartedRef.current) return;
     outroStartedRef.current = true;
     setProgress(100);
     setPhase('completed');
 
-    // 1. Sau 0.2s (200ms): Ẩn viền trong mượt mà
+    // Sau 0.2s (200ms): Ẩn viền trong mượt mà (thụt ra ngoài và bị cắt dần)
     setTimeout(() => {
       setPhase('ring-out');
     }, 200);
 
-    // 2. Sau 0.2s + 0.5s = 0.7s (700ms): Bắt đầu bay về header
+    // Sau 200ms + 300ms = 500ms: Bắt đầu hiệu ứng Logo thu nhỏ & Chữ trượt lên biến mất
     setTimeout(() => {
-      try {
-        const targetLogo = document.getElementById('header-logo-container');
-        const targetText = document.getElementById('header-main-label');
+      setPhase('exit');
+    }, 500);
 
-        if (targetLogo && targetText && logoRef.current && textRef.current) {
-          const tlRect = targetLogo.getBoundingClientRect();
-          const ttRect = targetText.getBoundingClientRect();
-          const clRect = logoRef.current.getBoundingClientRect();
-          const ctRect = textRef.current.getBoundingClientRect();
-
-          const cLogoCenterX = clRect.left + clRect.width / 2;
-          const cLogoCenterY = clRect.top + clRect.height / 2;
-          const tLogoCenterX = tlRect.left + tlRect.width / 2;
-          const tLogoCenterY = tlRect.top + tlRect.height / 2;
-
-          const logoDeltaX = tLogoCenterX - cLogoCenterX;
-          const logoDeltaY = tLogoCenterY - cLogoCenterY;
-          const logoScale = Math.max(0.2, Math.min(1, tlRect.width / (clRect.width || 1)));
-
-          const cTextCenterX = ctRect.left + ctRect.width / 2;
-          const cTextCenterY = ctRect.top + ctRect.height / 2;
-          const tTextCenterX = ttRect.left + ttRect.width / 2;
-          const tTextCenterY = ttRect.top + ttRect.height / 2;
-
-          const textDeltaX = tTextCenterX - cTextCenterX;
-          const textDeltaY = tTextCenterY - cTextCenterY;
-          const textScale = Math.max(0.2, Math.min(1, ttRect.height / (ctRect.height || 1)));
-
-          setFlyTransform({
-            logoDeltaX,
-            logoDeltaY,
-            logoScale,
-            textDeltaX,
-            textDeltaY,
-            textScale
-          });
-        }
-      } catch (err) {
-        console.error('Error calculating fly transform:', err);
-      }
-      setPhase('flying');
-    }, 700);
-
-    // 3. Sau 700ms + 550ms = 1250ms: Kết thúc hoàn tất
+    // Khi hiệu ứng exit chạy được 70% (70% của 400ms = 280ms -> tại mốc 500ms + 280ms = 780ms):
+    // Nền trắng bắt đầu mờ dần
     setTimeout(() => {
-      setPhase('done');
+      setPhase('fading-bg');
+    }, 780);
+
+    // Sau khi cả 2 hiệu ứng và nền đạt 100% (tại 500ms + 400ms = 900ms):
+    // Ẩn hoàn toàn màn hình loading và bàn giao giao diện
+    setTimeout(() => {
       if (onComplete) onComplete();
-    }, 1250);
+      setPhase('done');
+    }, 900);
   };
 
-  // 1. Quản lý mức tải và tiến trình tăng mượt mà (% tiến độ)
+  // 6. Quản lý mức tải và tiến trình tăng mượt mà (% tiến độ)
   useEffect(() => {
     let isMounted = true;
     let animId = null;
 
     const updateTarget = (val) => {
+      if (!isMounted) return;
       progressTargetRef.current = Math.max(progressTargetRef.current, val);
     };
 
     if (document.readyState === 'complete') {
-      updateTarget(60);
-    } else if (document.readyState === 'interactive') {
-      updateTarget(40);
+      updateTarget(calculateCombinedProgress());
     }
-
-    const onWindowLoad = () => updateTarget(80);
-    window.addEventListener('load', onWindowLoad);
 
     if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(() => updateTarget(85)).catch(() => {});
+      document.fonts.ready.then(() => {
+        if (!isMounted) return;
+        fontReadyRef.current = true;
+        updateTarget(calculateCombinedProgress());
+      }).catch(() => {
+        fontReadyRef.current = true;
+      });
     }
 
-    const t1 = setTimeout(() => updateTarget(45), 50);
-    const t2 = setTimeout(() => updateTarget(75), 150);
-    const t3 = setTimeout(() => updateTarget(92), 300);
-    const t4 = setTimeout(() => updateTarget(100), 500);
+    // Đánh dấu layout DOM pass 1
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!isMounted) return;
+        domRenderReadyRef.current = true;
+        updateTarget(calculateCombinedProgress());
+      });
+    });
 
     const stepLoop = () => {
       if (!isMounted) return;
@@ -159,90 +178,57 @@ export const InitialLoadingScreen = ({ isDataReady = false, onComplete, isLiquid
 
     animId = requestAnimationFrame(stepLoop);
 
-    // Failsafe timer tối đa 1.8s
+    // Failsafe timer tối đa 2.2s đảm bảo trải nghiệm luôn thông suốt
     const failsafe = setTimeout(() => {
       if (!isMounted) return;
       currentProgressRef.current = 100;
       triggerOutro();
-    }, 1800);
+    }, 2200);
 
     return () => {
       isMounted = false;
       if (animId) cancelAnimationFrame(animId);
-      window.removeEventListener('load', onWindowLoad);
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      clearTimeout(t4);
       clearTimeout(failsafe);
     };
   }, []);
-
-  // Khi dữ liệu thực tế từ API sẵn sàng
-  useEffect(() => {
-    if (isDataReady) {
-      progressTargetRef.current = 100;
-    }
-  }, [isDataReady]);
 
   if (phase === 'done') {
     return null;
   }
 
-  // Kích thước khung logo ở giữa màn hình
-  const W = 84;
-  const H = 84;
-  const R = 24;
-  const inset = 4.5;
-  const innerR = Math.max(2, R - inset);
+  // Khớp hoàn hảo với đường viền rounded-2xl của header
+  const squirclePath = "M 50 5 H 72 A 23 23 0 0 1 95 28 V 72 A 23 23 0 0 1 72 95 H 28 A 23 23 0 0 1 5 72 V 28 A 23 23 0 0 1 28 5 Z";
 
-  const cx = W / 2;
-  const topY = inset;
-  const rightX = W - inset;
-  const bottomY = H - inset;
-  const leftX = inset;
+  const isRingOut = phase === 'ring-out' || phase === 'exit' || phase === 'fading-bg';
+  const isExiting = phase === 'exit' || phase === 'fading-bg';
+  const isFadingBg = phase === 'fading-bg';
 
-  const squirclePath = `M ${cx} ${topY} ` +
-    `H ${rightX - innerR} ` +
-    `A ${innerR} ${innerR} 0 0 1 ${rightX} ${topY + innerR} ` +
-    `V ${bottomY - innerR} ` +
-    `A ${innerR} ${innerR} 0 0 1 ${rightX - innerR} ${bottomY} ` +
-    `H ${leftX + innerR} ` +
-    `A ${innerR} ${innerR} 0 0 1 ${leftX} ${bottomY - innerR} ` +
-    `V ${topY + innerR} ` +
-    `A ${innerR} ${innerR} 0 0 1 ${leftX + innerR} ${topY} ` +
-    `Z`;
-
-  const isFlying = phase === 'flying';
-  const isRingOut = phase === 'ring-out' || isFlying;
-
-  const logoTransformStyle = isFlying ? {
-    transform: `translate3d(${flyTransform.logoDeltaX}px, ${flyTransform.logoDeltaY}px, 0) scale(${flyTransform.logoScale})`,
-    transition: 'transform 550ms cubic-bezier(0.25, 1, 0.5, 1)'
-  } : {
-    transform: 'translate3d(0, 0, 0) scale(1)',
-    transition: 'none'
+  // Logo thu nhỏ lại (scale down) và fade out
+  const logoStyle = {
+    transform: isExiting ? 'scale(0.65)' : 'scale(1)',
+    opacity: isExiting ? 0 : 1,
+    transformOrigin: 'center center',
+    transition: isExiting ? 'transform 400ms cubic-bezier(0.25, 1, 0.5, 1), opacity 380ms ease-out' : 'none'
   };
 
-  const textTransformStyle = isFlying ? {
-    transform: `translate3d(${flyTransform.textDeltaX}px, ${flyTransform.textDeltaY}px, 0) scale(${flyTransform.textScale})`,
-    transition: 'transform 550ms cubic-bezier(0.25, 1, 0.5, 1)'
-  } : {
-    transform: 'translate3d(0, 0, 0) scale(1)',
-    transition: 'none'
+  // Chữ chạy lên (translateY âm) và biến mất qua ranh giới ngay trên đầu
+  const textStyle = {
+    transform: isExiting ? 'translateY(-100%)' : 'translateY(0%)',
+    opacity: isExiting ? 0 : 1,
+    transition: isExiting ? 'transform 400ms cubic-bezier(0.25, 1, 0.5, 1), opacity 350ms ease-in' : 'none'
   };
 
-  // Nền mờ và biến mất hoàn toàn ngay khi logo và chữ di chuyển được 20% chặng đường (20% của 550ms = 110ms)
+  // Nền mờ dần khi cả 2 hiệu ứng đạt 70% (transition trong 120ms còn lại)
   const bgStyle = {
-    opacity: isFlying ? 0 : 1,
-    transition: isFlying ? 'opacity 110ms ease-out' : 'none'
+    opacity: isFadingBg ? 0 : 1,
+    transition: isFadingBg ? 'opacity 120ms ease-out' : 'none'
   };
 
   // Viền trong thụt ra ngoài và bị đường viền thường của logo cắt dần rồi hết
   const innerRingStyle = {
     transform: isRingOut ? 'scale(1.22)' : 'scale(1)',
     opacity: isRingOut ? 0 : 1,
-    transition: isRingOut ? 'transform 350ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 350ms ease-out' : 'none',
+    transition: isRingOut ? 'transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 300ms ease-out' : 'none',
     transformOrigin: 'center center'
   };
 
@@ -254,7 +240,7 @@ export const InitialLoadingScreen = ({ isDataReady = false, onComplete, isLiquid
       className="fixed inset-0 z-[9999] pointer-events-none select-none flex flex-col items-center justify-center"
       aria-hidden="true"
     >
-      <!-- Lớp nền trắng -->
+      <!-- Lớp nền trắng mờ dần khi đạt 70% -->
       <div 
         className="absolute inset-0 bg-white" 
         style=${bgStyle}
@@ -262,17 +248,20 @@ export const InitialLoadingScreen = ({ isDataReady = false, onComplete, isLiquid
 
       <!-- Khung hiển thị logo và chữ ở trung tâm -->
       <div className="relative z-10 flex flex-col items-center justify-center">
-        <!-- Logo container -->
+        <!-- Logo container định dạng đồng nhất với header logo container -->
         <div 
           ref=${logoRef}
           id="loading-logo-container"
-          className=${`relative w-[84px] h-[84px] rounded-3xl border flex items-center justify-center overflow-hidden ${isLiquid ? 'bg-white/80 backdrop-blur-md border-indigo-200/60 shadow-lg' : 'bg-white border-slate-200 shadow-md'}`}
-          style=${logoTransformStyle}
+          className=${`relative w-20 h-20 rounded-2xl border flex items-center justify-center overflow-hidden ${isLiquid ? 'bg-white/20 backdrop-blur-md border-white/50 shadow-glass' : 'bg-white border-slate-200 shadow-sm'}`}
+          style=${logoStyle}
         >
+          <!-- Lớp hiệu ứng gradient liquid đồng nhất với header -->
+          ${isLiquid && html`<div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 opacity-100 pointer-events-none"></div>`}
+
           <!-- SVG Viền trong thể hiện mức load bắt đầu từ chính giữa cạnh trên -->
           <svg 
-            className="absolute inset-0 w-full h-full pointer-events-none"
-            viewBox="0 0 ${W} ${H}"
+            className="absolute inset-0 w-full h-full pointer-events-none z-20 overflow-visible"
+            viewBox="0 0 100 100"
             style=${innerRingStyle}
           >
             <!-- Viền trong chạy theo tiến độ thực tế -->
@@ -281,7 +270,7 @@ export const InitialLoadingScreen = ({ isDataReady = false, onComplete, isLiquid
               d=${squirclePath}
               fill="none"
               stroke="#4f46e5"
-              strokeWidth="3.2"
+              strokeWidth="4.5"
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeDasharray=${pathLength}
@@ -291,21 +280,22 @@ export const InitialLoadingScreen = ({ isDataReady = false, onComplete, isLiquid
 
           <!-- Icon BookOpen bên trong logo -->
           <${BookOpen} 
-            className="relative z-10 text-indigo-600 drop-shadow-sm w-9 h-9" 
+            className="relative z-10 text-indigo-600 drop-shadow-sm w-10 h-10" 
             strokeWidth=${2.5} 
           />
         </div>
 
-        <!-- Chữ Nội dung ghi bài bên dưới logo -->
+        <!-- Chữ Nội dung ghi bài bên dưới logo với ranh giới cắt overflow-hidden ngay trên đầu chữ -->
         <div 
           ref=${textRef}
-          id="loading-logo-text"
-          className="mt-4 flex flex-col items-center justify-center"
-          style=${textTransformStyle}
+          id="loading-logo-text-wrapper"
+          className="mt-4 overflow-hidden flex flex-col items-center justify-center px-4 py-1"
         >
-          <span className=${`font-sans font-bold tracking-tight text-2xl drop-shadow-sm ${isLiquid ? 'bg-clip-text text-transparent bg-gradient-to-r from-indigo-900 to-violet-900' : 'text-slate-800'}`}>
-            ${layoutError ? 'Nội dung bài học' : 'Nội dung ghi bài'}
-          </span>
+          <div style=${textStyle} className="flex flex-col items-center justify-center">
+            <span className=${`font-sans font-bold tracking-tight text-2xl drop-shadow-sm ${isLiquid ? 'bg-clip-text text-transparent bg-gradient-to-r from-indigo-900 to-violet-900' : 'text-slate-800'}`}>
+              ${layoutError ? 'Nội dung bài học' : 'Nội dung ghi bài'}
+            </span>
+          </div>
         </div>
       </div>
     </div>

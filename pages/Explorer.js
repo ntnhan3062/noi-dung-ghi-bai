@@ -10,6 +10,7 @@ import { EditorModal } from '../components/EditorModal.js';
 import { ChangePasswordModal } from '../components/ChangePasswordModal.js';
 import { useBreadcrumbs } from '../context/BreadcrumbContext.js';
 import { useClasses } from '../context/ClassContext.js';
+import { useLoadingProgress } from '../context/LoadingProgressContext.js';
 import { StatusPage } from '../components/StatusPage.js';
 import Sortable from 'sortablejs';
 
@@ -220,6 +221,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
   const location = useLocation();
   const { updateBreadcrumbs, setBreadcrumbsVisible } = useBreadcrumbs();
   const { selectedClassId } = useClasses();
+  const { startProgress, updateProgress, completeProgress, resetProgress } = useLoadingProgress();
   
   const [allNodes, setAllNodes] = useState(() => {
     try {
@@ -296,6 +298,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
   const userExitedAutoFullscreenRef = useRef(false);
   const isManualFullscreenRef = useRef(false);
   const isSystemTogglingFullscreenRef = useRef(false);
+  const hasInitialMountedRef = useRef(false);
 
   const selectNoneStyle = {
     userSelect: 'none',
@@ -468,9 +471,43 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
   }, [loading, nodeId, currentNode]);
 
   useEffect(() => { 
+    if (hasInitialMountedRef.current) {
+      startProgress(10);
+      updateProgress(45);
+    }
     fetchData(); 
     setIsMathRendered(false); // Reset math rendered state on node change
   }, [nodeId]);
+
+  // Quản lý trạng thái progress trên header logo: kết thúc tiến trình khi hoàn tất tải dữ liệu và hiển thị đầy đủ
+  useEffect(() => {
+    if (!hasInitialMountedRef.current) {
+      if (!loading) {
+        hasInitialMountedRef.current = true;
+      }
+      return;
+    }
+
+    if (loading) {
+      updateProgress(60);
+    } else {
+      if (currentNode?.type === NodeType.LESSON) {
+        if (!hasMath) {
+          setIsMathRendered(true);
+          requestAnimationFrame(() => {
+            completeProgress();
+          });
+        } else {
+          updateProgress(80);
+        }
+      } else {
+        // Môn học, chương mục: skeleton hiện chữ hoàn tất -> tiến trình đạt 100% và ẩn viền ngay
+        requestAnimationFrame(() => {
+          completeProgress();
+        });
+      }
+    }
+  }, [loading, currentNode?.type, hasMath]);
 
   useEffect(() => {
     if (isEditingContent) return;
@@ -481,9 +518,17 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
       setIsMathRendered(true);
       lastRenderedNodeIdRef.current = currentNode?.id;
       lastRenderedContentRef.current = currentNode?.content;
+      if (hasInitialMountedRef.current) {
+        completeProgress();
+      }
       return;
     }
 
+    // Khi đang hiển thị skeleton render công thức KaTeX của bài học -> hiện loading trên logo header
+    if (hasInitialMountedRef.current) {
+      startProgress(35);
+      updateProgress(75);
+    }
     let isMounted = true;
     let isRendering = false;
 
@@ -491,6 +536,9 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     const safetyTimeout = setTimeout(() => {
       if (isMounted) {
         setIsMathRendered(true);
+        if (hasInitialMountedRef.current) {
+          completeProgress();
+        }
       }
     }, 3500);
 
@@ -502,6 +550,9 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
         requestAnimationFrame(() => {
           if (isMounted) {
             setIsMathRendered(true);
+            if (hasInitialMountedRef.current) {
+              completeProgress();
+            }
             clearTimeout(safetyTimeout);
           }
         });
@@ -1386,6 +1437,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     const editor = window.tinymce.get('editor-container');
     if (editor) {
       setSaving(true);
+      startProgress(15);
       const existingInterim = editor.dom.select('span#voice-interim')[0];
       if (existingInterim) editor.dom.remove(existingInterim);
       
@@ -1394,23 +1446,77 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
       newContent = normalizeMathSpans(newContent);
       
       try {
+        updateProgress(45);
         const updatedNode = { ...currentNode, content: newContent };
         setAllNodes(prev => prev.map(n => n.id === updatedNode.id ? updatedNode : n));
         await apiService.saveNode(updatedNode);
+        updateProgress(80);
         setIsEditingContent(false);
         await fetchData(true); 
-      } catch (e) { alert("Lỗi khi lưu nội dung!"); } finally { setSaving(false); }
+        completeProgress();
+      } catch (e) { 
+        completeProgress();
+        alert("Lỗi khi lưu nội dung!"); 
+      } finally { 
+        setSaving(false); 
+      }
     }
   };
-  const handleDelete = async (node) => { if (window.confirm(`Bạn có chắc muốn xóa "${node.title}"?`)) { await apiService.deleteNode(node.id); fetchData(true); } };
-  const handleSaveModal = async (data) => { await apiService.saveNode(data); fetchData(true); };
-  const handleChangePassword = async (newPass) => { const success = await apiService.changePassword(newPass); if (success) sessionStorage.setItem('auth_pass', newPass); return success; };
+  const handleDelete = async (node) => { 
+    if (window.confirm(`Bạn có chắc muốn xóa "${node.title}"?`)) { 
+      try {
+        startProgress(15);
+        updateProgress(45);
+        await apiService.deleteNode(node.id); 
+        updateProgress(80);
+        await fetchData(true);
+        completeProgress();
+      } catch (e) {
+        completeProgress();
+        alert("Lỗi khi xóa!");
+      }
+    } 
+  };
+  const handleSaveModal = async (data) => { 
+    try {
+      startProgress(15);
+      updateProgress(45);
+      await apiService.saveNode(data); 
+      updateProgress(80);
+      await fetchData(true);
+      completeProgress();
+    } catch (e) {
+      completeProgress();
+      alert("Lỗi khi lưu!");
+    }
+  };
+  const handleChangePassword = async (newPass) => { 
+    startProgress(20);
+    updateProgress(60);
+    const success = await apiService.changePassword(newPass); 
+    if (success) sessionStorage.setItem('auth_pass', newPass); 
+    completeProgress();
+    return success; 
+  };
   const handleLogout = () => { sessionStorage.removeItem('auth_pass'); navigate('/view'); };
   const handleSaveOrder = async () => {
     setSaving(true);
-    const updates = children.map((node) => ({ id: node.id, parentId: node.parentId, orderIndex: node.orderIndex }));
-    await apiService.batchUpdateNodes(updates);
-    setSaving(false); setIsSorting(false); await fetchData(true); 
+    startProgress(15);
+    try {
+      updateProgress(45);
+      const updates = children.map((node) => ({ id: node.id, parentId: node.parentId, orderIndex: node.orderIndex }));
+      await apiService.batchUpdateNodes(updates);
+      updateProgress(80);
+      setSaving(false); 
+      setIsSorting(false); 
+      await fetchData(true); 
+      completeProgress();
+    } catch (e) {
+      setSaving(false);
+      setIsSorting(false);
+      completeProgress();
+      alert("Lỗi khi lưu sắp xếp!");
+    }
   };
   const handleStartMove = (node) => setMovingNode(node);
   const handleCancelMove = () => setMovingNode(null);
@@ -1418,10 +1524,22 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     if (!movingNode) return;
     if (movingNode.id === nodeId) { alert("Không thể di chuyển thư mục vào chính nó."); return; }
     setLoading(true);
-    const maxOrder = (children && children.length > 0) ? Math.max(...children.map(c => c.orderIndex || 0)) : -1;
-    const updates = [{ id: movingNode.id, parentId: nodeId || null, orderIndex: maxOrder + 1 }];
-    await apiService.batchUpdateNodes(updates);
-    setMovingNode(null); await fetchData(true); setLoading(false);
+    startProgress(15);
+    try {
+      updateProgress(45);
+      const maxOrder = (children && children.length > 0) ? Math.max(...children.map(c => c.orderIndex || 0)) : -1;
+      const updates = [{ id: movingNode.id, parentId: nodeId || null, orderIndex: maxOrder + 1 }];
+      await apiService.batchUpdateNodes(updates);
+      setMovingNode(null); 
+      updateProgress(80);
+      await fetchData(true); 
+      completeProgress();
+    } catch (e) {
+      completeProgress();
+      alert("Lỗi khi di chuyển!");
+    } finally {
+      setLoading(false);
+    }
   };
   const increaseFontSize = () => {
     setViewFontSize(prev => {

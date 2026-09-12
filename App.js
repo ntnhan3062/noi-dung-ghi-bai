@@ -15,6 +15,8 @@ import { ChevronDown, Settings as SettingsIcon, Trash2, Edit2, GripVertical } fr
 import { StatusPage } from './components/StatusPage.js';
 import { ErrorBoundary } from './components/ErrorBoundary.js';
 import { LayoutErrorProvider, useLayoutError } from './context/LayoutErrorContext.js';
+import { LoadingProgressProvider } from './context/LoadingProgressContext.js';
+import { HeaderLogoProgressRing } from './components/HeaderLogoProgressRing.js';
 import { InitialLoadingScreen } from './components/InitialLoadingScreen.js';
 
 // Biến lưu nhánh URL cố định cho GitHub Pages
@@ -222,8 +224,9 @@ const Layout = ({ children, isAppMode, uiConfig, currentBg, isOnline, isInitialL
             <div 
               id="header-logo-container" 
               key="logo-container" 
-              className=${`relative p-2.5 rounded-2xl border transition-all duration-500 overflow-hidden ${isLiquid ? 'bg-white/20 backdrop-blur-md border-white/50 shadow-glass group-hover:shadow-neon' : 'bg-white border-slate-200 shadow-sm'} ${secretCount > 0 ? 'ring-2 ring-indigo-400' : ''} ${isInitialLoading ? 'opacity-0 pointer-events-none' : 'opacity-100 transition-opacity duration-300'}`}
+              className=${`relative p-2.5 rounded-2xl border transition-all duration-500 overflow-hidden ${isLiquid ? 'bg-white/20 backdrop-blur-md border-white/50 shadow-glass group-hover:shadow-neon' : 'bg-white border-slate-200 shadow-sm'} ${secretCount > 0 ? 'ring-2 ring-indigo-400' : ''}`}
             >
+              <${HeaderLogoProgressRing} isAppMode=${isAppMode} />
               ${isLiquid && html`<div key="liquid-bg" className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>`}
               <${BookOpen} key="logo-icon" className=${`relative z-10 text-indigo-600 drop-shadow-sm ${isAppMode ? "w-5 h-5" : "w-7 h-7"}`} strokeWidth=${2.5} />
             </div>
@@ -231,7 +234,7 @@ const Layout = ({ children, isAppMode, uiConfig, currentBg, isOnline, isInitialL
                 <span 
                   id="header-main-label" 
                   key="main-label" 
-                  className=${`font-sans font-bold tracking-tight drop-shadow-sm ${isAppMode ? 'text-xl' : 'text-2xl'} ${isLiquid ? 'bg-clip-text text-transparent bg-gradient-to-r from-indigo-900 to-violet-900' : 'text-slate-800'} ${isInitialLoading ? 'opacity-0 pointer-events-none' : 'opacity-100 transition-opacity duration-300'}`}
+                  className=${`font-sans font-bold tracking-tight drop-shadow-sm ${isAppMode ? 'text-xl' : 'text-2xl'} ${isLiquid ? 'bg-clip-text text-transparent bg-gradient-to-r from-indigo-900 to-violet-900' : 'text-slate-800'}`}
                 >
                   ${layoutError ? 'Nội dung bài học' : 'Nội dung ghi bài'}
                 </span>
@@ -536,22 +539,27 @@ const App = () => {
   return html`
     <${ErrorBoundary}>
       <${LayoutErrorProvider}>
-        <${BrowserRouter} basename=${getBasename()}>
-          <${ClassProvider}>
-            <${BreadcrumbProvider}>
-              <${Layout} isAppMode=${isAppMode} uiConfig=${uiConfig} currentBg=${currentBg} isOnline=${isOnline} isInitialLoading=${isInitialLoading}>
-                 <${AnimatedRoutes} isAppMode=${isAppMode} uiConfig=${uiConfig} />
-              </${Layout}>
-              ${isInitialLoading && html`
-                <${InitialLoadingScreen} 
-                  isDataReady=${isDataReady} 
-                  isLiquid=${uiConfig.style === 'liquid'}
-                  onComplete=${() => setIsInitialLoading(false)}
-                />
-              `}
-            </${BreadcrumbProvider}>
-          </${ClassProvider}>
-        </${BrowserRouter}>
+        <${LoadingProgressProvider}>
+          <${BrowserRouter} basename=${getBasename()}>
+            <${ClassProvider}>
+              <${BreadcrumbProvider}>
+                <${Layout} isAppMode=${isAppMode} uiConfig=${uiConfig} currentBg=${currentBg} isOnline=${isOnline} isInitialLoading=${isInitialLoading}>
+                   <${AnimatedRoutes} isAppMode=${isAppMode} uiConfig=${uiConfig} />
+                </${Layout}>
+                ${isInitialLoading && html`
+                  <${InitialLoadingScreen} 
+                    isDataReady=${isDataReady} 
+                    currentBg=${currentBg}
+                    bgActive=${uiConfig?.backgroundActive}
+                    isLiquid=${uiConfig.style === 'liquid'}
+                    isAppMode=${isAppMode}
+                    onComplete=${() => setIsInitialLoading(false)}
+                  />
+                `}
+              </${BreadcrumbProvider}>
+            </${ClassProvider}>
+          </${BrowserRouter}>
+        </${LoadingProgressProvider}>
       </${LayoutErrorProvider}>
     </${ErrorBoundary}>
   `;

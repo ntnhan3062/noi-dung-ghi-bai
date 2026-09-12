@@ -4,6 +4,7 @@ import { ArrowLeft, Save, Plus, Trash2, Edit2, Image as ImageIcon, Loader2, Layo
 import { apiService } from '../services/apiService.js';
 import { useNavigate } from 'react-router-dom';
 import { useBreadcrumbs } from '../context/BreadcrumbContext.js';
+import { useLoadingProgress } from '../context/LoadingProgressContext.js';
 
 const BackgroundItem = ({ url, index, onChange, onDelete, disabled }) => {
   const [isEditing, setIsEditing] = useState(!url);
@@ -236,6 +237,7 @@ const AttachedDropdownToggle = ({
 export const SettingsPage = () => {
   const navigate = useNavigate();
   const { setBreadcrumbsVisible } = useBreadcrumbs();
+  const { startProgress, updateProgress, completeProgress } = useLoadingProgress();
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -305,6 +307,7 @@ export const SettingsPage = () => {
 
   const handleSave = async () => {
     setSaving(true);
+    startProgress(20);
     try {
       localStorage.setItem('ui_back_button', JSON.stringify(config?.ui?.backButton));
     } catch {}
@@ -313,12 +316,15 @@ export const SettingsPage = () => {
         ...(config?.background || {}),
         images: bgImages.filter(url => url && typeof url === 'string' && url.trim().length > 0)
     };
+    updateProgress(60);
     const success = await apiService.saveFullConfig({ ...config, background: cleanBackgrounds });
     setSaving(false);
     if (success) {
+      completeProgress();
       window.location.href = '#/edit'; 
       window.location.reload();
     } else {
+      completeProgress();
       alert("Có lỗi khi lưu cài đặt!");
     }
   };

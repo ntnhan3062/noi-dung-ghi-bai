@@ -1,4 +1,4 @@
-const CACHE_NAME = 'noi-dung-ghi-bai-v9';
+const CACHE_NAME = 'noi-dung-ghi-bai-v10';
 const ASSETS_TO_CACHE = [
   './',
   'index.html',
@@ -9,10 +9,12 @@ const ASSETS_TO_CACHE = [
   'context/BreadcrumbContext.js',
   'context/ClassContext.js',
   'context/LayoutErrorContext.js',
+  'context/LoadingProgressContext.js',
   'components/Breadcrumbs.js',
   'components/ChangePasswordModal.js',
   'components/EditorModal.js',
   'components/ErrorBoundary.js',
+  'components/HeaderLogoProgressRing.js',
   'components/InitialLoadingScreen.js',
   'components/NodeItem.js',
   'components/SettingsModal.js',
