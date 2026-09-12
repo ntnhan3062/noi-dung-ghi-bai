@@ -537,12 +537,8 @@ const App = () => {
   })();
 
   useEffect(() => {
-    // Failsafe timer tối đa 2.5s đảm bảo không bao giờ bị kẹt màn hình loading
-    const safetyTimer = setTimeout(() => {
-      setIsInitialLoading(false);
-      setIsDataReady(true);
-    }, 2500);
-    return () => clearTimeout(safetyTimer);
+    // Đảm bảo dữ liệu sẵn sàng cho layout
+    setIsDataReady(true);
   }, []);
 
   if (!isAuthorized) return html`

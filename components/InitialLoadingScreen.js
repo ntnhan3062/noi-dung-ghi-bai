@@ -37,9 +37,25 @@ export const InitialLoadingScreen = ({
 
   const progressTargetRef = useRef(5);
   const currentProgressRef = useRef(0);
+  
   const outroStartedRef = useRef(false);
+  const outroActiveRef = useRef(false);
+  const outroElapsedRef = useRef(0);
+  const outroLastTimeRef = useRef(0);
+  const outroAnimIdRef = useRef(null);
+  const currentPhaseRef = useRef('loading');
+
   const bootstrapCompletedPayloadRef = useRef(null);
   const isContentReadyRef = useRef(isContentReady);
+  const isPageVisibleRef = useRef(!document.hidden);
+  const animIdRef = useRef(null);
+
+  const setPhaseState = (newPhase) => {
+    if (currentPhaseRef.current !== newPhase) {
+      currentPhaseRef.current = newPhase;
+      setPhase(newPhase);
+    }
+  };
 
   useEffect(() => {
     if (isContentReady) {
@@ -59,80 +75,153 @@ export const InitialLoadingScreen = ({
     }
   }, []);
 
-  // 2. Kích hoạt chuỗi hiệu ứng kết thúc loading (Outro sequence)
+  // 2. Bộ điều phối Outro Ticker (Tổng thời lượng = 1200ms)
+  const startOutroTicker = () => {
+    if (outroActiveRef.current) return;
+    outroActiveRef.current = true;
+    outroLastTimeRef.current = Date.now();
+
+    const tick = () => {
+      if (!outroActiveRef.current) return;
+
+      const now = Date.now();
+      const delta = now - outroLastTimeRef.current;
+      outroLastTimeRef.current = now;
+
+      outroElapsedRef.current += delta;
+      const elapsed = outroElapsedRef.current;
+
+      if (elapsed >= 1200) {
+        outroActiveRef.current = false;
+        setPhaseState('done');
+        if (onComplete) onComplete();
+        return;
+      } else if (elapsed >= 1050) {
+        setPhaseState('fading-bg');
+      } else if (elapsed >= 700) {
+        setPhaseState('exit');
+      } else if (elapsed >= 200) {
+        setPhaseState('ring-out');
+      }
+
+      if (outroActiveRef.current) {
+        outroAnimIdRef.current = requestAnimationFrame(tick);
+      }
+    };
+
+    outroAnimIdRef.current = requestAnimationFrame(tick);
+  };
+
+  const pauseOutroTicker = () => {
+    outroActiveRef.current = false;
+    if (outroAnimIdRef.current) {
+      cancelAnimationFrame(outroAnimIdRef.current);
+      outroAnimIdRef.current = null;
+    }
+  };
+
+  // Kích hoạt chuỗi hiệu ứng kết thúc loading (Outro sequence)
   const triggerOutro = () => {
     if (outroStartedRef.current) return;
     outroStartedRef.current = true;
     setProgress(100);
-    setPhase('completed');
+    setPhaseState('completed');
 
     // Chuyển giao dữ liệu đã nạp sẵn cho App khi đạt 100%
     if (onBootstrapData && bootstrapCompletedPayloadRef.current) {
       onBootstrapData(bootstrapCompletedPayloadRef.current);
     }
 
-    // Sau 0.2s (200ms): Viền trong to ra, bị cắt bởi viền ngoài và biến mất
-    setTimeout(() => {
-      setPhase('ring-out');
-    }, 200);
-
-    // Sau 0.5s nữa (tức 200ms + 500ms = 700ms): Hiệu ứng thu nhỏ logo & fade out + Chữ chạy lên bị cắt ở đỉnh
-    setTimeout(() => {
-      setPhase('exit');
-    }, 700);
-
-    // Khi hiệu ứng exit chạy được 70% (70% của 500ms = 350ms -> tại mốc 700ms + 350ms = 1050ms):
-    // Nền mờ dần cho đến 100% hiệu ứng (30% còn lại = 150ms)
-    setTimeout(() => {
-      setPhase('fading-bg');
-    }, 1050);
-
-    // Khi cả hiệu ứng exit & nền mờ đạt 100% (tại mốc 700ms + 500ms = 1200ms):
-    // Hoàn tất màn hình loading và bàn giao giao diện
-    setTimeout(() => {
-      if (onComplete) onComplete();
-      setPhase('done');
-    }, 1200);
+    startOutroTicker();
   };
 
-  // 3. Quản lý bootstrap sequence tự động gợi nạp tất cả phần còn lại và tính tiến độ
+  // 3. Xử lý Sự kiện Visibility Change (Chuyển tab / Hạ cửa sổ trình duyệt)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      const isVisible = !document.hidden;
+      isPageVisibleRef.current = isVisible;
+
+      if (!isVisible) {
+        // --- KHI NGƯỜI DÙNG ẨN TRANG / CHUYỂN TAB ---
+        if (outroStartedRef.current && outroActiveRef.current) {
+          const elapsed = outroElapsedRef.current;
+          const ratio = elapsed / 1200;
+
+          if (ratio < 0.5) {
+            // Nếu hiệu ứng Outro CHƯA ĐẠT 50% -> Tạm dừng hiệu ứng, chờ khi quay lại mới tiếp tục
+            pauseOutroTicker();
+          } else {
+            // Nếu hiệu ứng Outro ĐÃ HƠN 50% -> Vẫn tiếp tục chạy ngầm hoàn tất 100%
+            const remaining = Math.max(0, 1200 - elapsed);
+            setTimeout(() => {
+              if (outroStartedRef.current && outroElapsedRef.current >= 600) {
+                outroElapsedRef.current = 1200;
+                setPhaseState('done');
+                if (onComplete) onComplete();
+              }
+            }, remaining);
+          }
+        }
+      } else {
+        // --- KHI NGƯỜI DÙNG QUAY LẠI XEM TRANG WEB ---
+        if (outroStartedRef.current) {
+          // Nếu Outro đang bị tạm dừng (do chưa đạt 50%), tiếp tục chạy tiếp
+          if (!outroActiveRef.current && outroElapsedRef.current < 1200) {
+            startOutroTicker();
+          }
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [onComplete]);
+
+  // 4. Quản lý bootstrap sequence tự động gợi nạp tất cả phần còn lại và tính tiến độ
   useEffect(() => {
     let isMounted = true;
-    let animId = null;
     const startTime = Date.now();
-    const MIN_LOADING_TIME = 450; // Đảm bảo màn hình loading luôn hiện ít nhất 0.45s (lớn hơn 0.3s) khi load nhanh
+    const MIN_LOADING_TIME = 450;
 
     const updateTarget = (val) => {
-      if (!isMounted) return;
       progressTargetRef.current = Math.max(progressTargetRef.current, Math.min(100, val));
     };
 
-    // Tiến trình tăng mượt mà (% tiến độ) - khống chế tốc độ tăng tối đa để tiến trình luôn hiện rõ
+    // Vòng lặp tính toán mượt tiến độ viền tròn
     const stepLoop = () => {
       if (!isMounted) return;
+
+      // Nếu tab đang bị ẩn và chưa Outro, tạm dừng cập nhật hiệu ứng giao diện (tác vụ nạp ngầm vẫn chạy)
+      if (!isPageVisibleRef.current && !outroStartedRef.current) {
+        animIdRef.current = requestAnimationFrame(stepLoop);
+        return;
+      }
 
       const target = progressTargetRef.current;
       const current = currentProgressRef.current;
 
       if (current < target) {
         const diff = target - current;
-        // Khống chế bước tăng tối đa 2.5% mỗi frame -> Đảm bảo cần ít nhất 40 frames (~600ms) để chạy từ 0 đến 100%
-        const step = Math.min(2.5, Math.max(0.6, diff * 0.08));
+        // Khi quay lại tab hoặc target đạt 100%, tăng tốc mượt để hoàn thành 100% nhanh
+        const maxStep = target === 100 ? Math.max(5.0, diff * 0.25) : 2.5;
+        const step = Math.min(maxStep, Math.max(0.7, diff * 0.09));
         const next = Math.min(100, current + step);
         currentProgressRef.current = next;
         setProgress(next);
       }
 
       if (currentProgressRef.current < 100) {
-        animId = requestAnimationFrame(stepLoop);
+        animIdRef.current = requestAnimationFrame(stepLoop);
       } else {
         triggerOutro();
       }
     };
 
-    animId = requestAnimationFrame(stepLoop);
+    animIdRef.current = requestAnimationFrame(stepLoop);
 
-    // Quy trình nạp từng phần tài nguyên (Bootstrap Pipeline)
+    // Quy trình nạp từng phần tài nguyên ngầm (Bootstrap Pipeline - luôn chạy ngầm bất kể ẩn/hiện tab)
     const runBootstrap = async () => {
       let fullConfig = null;
       let allNodes = [];
@@ -214,7 +303,7 @@ export const InitialLoadingScreen = ({
       }
       updateTarget(75);
 
-      // Bàn giao dữ liệu cho App ngay lập tức để render nền và layout
+      // Bàn giao dữ liệu cho App ngay lập tức
       bootstrapCompletedPayloadRef.current = {
         fullConfig,
         allNodes,
@@ -237,7 +326,7 @@ export const InitialLoadingScreen = ({
       });
       updateTarget(95);
 
-      // Bước 6: Chuẩn bị DOM layout & KaTeX layout stabilization (+5% -> 100%)
+      // Bước 6: Chuẩn bị DOM layout stabilization (+5% -> 100%)
       await new Promise(resolve => {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
@@ -246,7 +335,7 @@ export const InitialLoadingScreen = ({
         });
       });
 
-      // Bắt buộc giữ hiển thị tiến trình loading tối thiểu ít nhất 0.45s (ngay cả khi load siêu nhanh)
+      // Giữ hiển thị tiến trình loading tối thiểu 0.45s
       const elapsed = Date.now() - startTime;
       if (elapsed < MIN_LOADING_TIME) {
         await new Promise(resolve => setTimeout(resolve, MIN_LOADING_TIME - elapsed));
@@ -260,13 +349,13 @@ export const InitialLoadingScreen = ({
     // Safety timer tối đa 7.5s đảm bảo không bị kẹt vô tận
     const failsafe = setTimeout(() => {
       if (!isMounted) return;
-      currentProgressRef.current = 100;
-      triggerOutro();
+      updateTarget(100);
     }, 7500);
 
     return () => {
       isMounted = false;
-      if (animId) cancelAnimationFrame(animId);
+      if (animIdRef.current) cancelAnimationFrame(animIdRef.current);
+      if (outroAnimIdRef.current) cancelAnimationFrame(outroAnimIdRef.current);
       clearTimeout(failsafe);
     };
   }, []);
