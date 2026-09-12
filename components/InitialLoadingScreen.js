@@ -458,7 +458,16 @@ export const InitialLoadingScreen = ({
             viewBox="0 0 100 100"
             style=${innerRingStyle}
           >
-            <!-- Viền trong chạy theo tiến độ thực tế -->
+            <!-- Đường viền mờ nền (Track path) -->
+            <path
+              d=${squirclePath}
+              fill="none"
+              stroke="#e0e7ff"
+              strokeWidth="4.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <!-- Viền trong chạy theo tiến độ thực tế (Progress path) -->
             <path
               ref=${pathRef}
               d=${squirclePath}
@@ -474,7 +483,7 @@ export const InitialLoadingScreen = ({
 
           <!-- Icon BookOpen bên trong logo -->
           <${BookOpen} 
-            className="relative z-10 text-indigo-600 drop-shadow-sm w-10 h-10" 
+            className="relative z-10 text-indigo-600 w-10 h-10" 
             strokeWidth=${2.5} 
           />
         </div>
