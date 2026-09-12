@@ -7,18 +7,13 @@
       window.GITHUB_PAGES_BASE = 'https://ntnhan3062.github.io/noi-dung-ghi-bai/';
       window.GITHUB_REPO_PATH = '/noi-dung-ghi-bai';
 
-      // Tự động thiết lập Base URL chuẩn từ biến GITHUB_PAGES_BASE hoặc GITHUB_REPO_PATH
+      // Thiết lập Base URL theo đúng quy tắc:
+      // - Nếu là github.io -> Dùng GITHUB_PAGES_BASE
+      // - Ngược lại -> Dùng tên miền (window.location.origin + '/')
       (function() {
         try {
           var isGithub = window.location.hostname.indexOf('github.io') !== -1;
-          var baseUrl;
-          if (isGithub && window.GITHUB_PAGES_BASE) {
-            baseUrl = window.GITHUB_PAGES_BASE;
-          } else if (window.GITHUB_REPO_PATH && window.location.pathname.indexOf(window.GITHUB_REPO_PATH) === 0) {
-            baseUrl = window.location.origin + window.GITHUB_REPO_PATH + '/';
-          } else {
-            baseUrl = window.location.origin + '/';
-          }
+          var baseUrl = isGithub ? window.GITHUB_PAGES_BASE : (window.location.origin + '/');
           if (!baseUrl.endsWith('/')) baseUrl += '/';
 
           window.APP_BASE_URL = baseUrl;
@@ -528,6 +523,22 @@
         </div>
       </div>
     </div>
+    <script type="module">
+      // Nạp index.js theo quy tắc:
+      // - Nếu có github.io -> Dùng GITHUB_PAGES_BASE + 'index.js'
+      // - Ngược lại -> Dùng tên miền (window.location.origin) + '/index.js'
+      (function() {
+        var isGithub = window.location.hostname.indexOf('github.io') !== -1;
+        var baseUrl = isGithub ? window.GITHUB_PAGES_BASE : (window.location.origin + '/');
+        if (!baseUrl.endsWith('/')) baseUrl += '/';
+        
+        var scriptUrl = baseUrl + 'index.js';
+        var script = document.createElement('script');
+        script.type = 'module';
+        script.src = scriptUrl;
+        document.body.appendChild(script);
+      })();
+    </script>
     <script type="module" src="index.js"></script>
   </body>
 </html>
