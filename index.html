@@ -4,6 +4,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no" />
+    <script>
+      // Global Error Handler - In lỗi chi tiết ra console và hiển thị cảnh báo nếu sập
+      window.addEventListener('error', function(e) {
+        console.error('[TOÀN BỘ LỖI HỆ THỐNG]:', e.message || e, e.filename ? ('tại ' + e.filename + ':' + e.lineno) : '', e.error);
+      });
+      window.addEventListener('unhandledrejection', function(e) {
+        console.error('[LỖI PROMISE CHƯA XỬ LÝ]:', e.reason);
+      });
+    </script>
     <script type="importmap">
     {
       "imports": {
