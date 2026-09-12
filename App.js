@@ -359,6 +359,65 @@ const App = () => {
   });
   const [currentBg, setCurrentBg] = useState(null);
 
+  const applyConfig = useCallback((fullConfig, preloadedBg = null) => {
+    if (!fullConfig) return;
+    let savedBackButton = { enabled: true, view: true, edit: true, app: true };
+    try {
+      const val = localStorage.getItem('ui_back_button');
+      if (val !== null) {
+        if (val === 'true') savedBackButton = { enabled: true, view: true, edit: true, app: true };
+        else if (val === 'false') savedBackButton = { enabled: false, view: false, edit: false, app: false };
+        else savedBackButton = JSON.parse(val);
+      }
+    } catch {}
+
+    const bgImages = (fullConfig.background && Array.isArray(fullConfig.background.images)) ? fullConfig.background.images : [];
+    const bgActive = !!(fullConfig.background && fullConfig.background.active);
+    const uiStyle = (fullConfig.ui && fullConfig.ui.style) || 'liquid';
+    const uiZoom = (fullConfig.ui && fullConfig.ui.zoom) || { enabled: true, view: true, edit: true, app: false };
+    const rawBackButton = fullConfig?.ui?.backButton !== undefined ? fullConfig.ui.backButton : savedBackButton;
+    let uiBackButton = { enabled: true, view: true, edit: true, app: true };
+    if (rawBackButton === false) {
+      uiBackButton = { enabled: false, view: false, edit: false, app: false };
+    } else if (rawBackButton === true) {
+      uiBackButton = { enabled: true, view: true, edit: true, app: true };
+    } else if (typeof rawBackButton === 'object' && rawBackButton !== null) {
+      uiBackButton = {
+        enabled: rawBackButton.enabled !== false,
+        view: rawBackButton.view !== false,
+        edit: rawBackButton.edit !== false,
+        app: rawBackButton.app !== false
+      };
+    }
+
+    setUiConfig({
+        style: uiStyle,
+        zoom: uiZoom,
+        backButton: uiBackButton,
+        backgroundActive: bgActive,
+        backgrounds: bgImages
+    });
+    try {
+        localStorage.setItem('style_mode', uiStyle);
+    } catch (e) {
+        console.error(e);
+    }
+    
+    if (preloadedBg) {
+      setCurrentBg(preloadedBg);
+    } else if (bgActive && Array.isArray(bgImages) && bgImages.length > 0) {
+      setCurrentBg(bgImages[Math.floor(Math.random() * bgImages.length)]);
+    }
+    setIsDataReady(true);
+  }, []);
+
+  const handleBootstrapData = useCallback((payload) => {
+    if (!payload) return;
+    if (payload.fullConfig) {
+      applyConfig(payload.fullConfig, payload.currentBg);
+    }
+  }, [applyConfig]);
+
   const initConfig = useCallback(async () => {
       let fullConfig = null;
       try {
@@ -385,53 +444,8 @@ const App = () => {
           fullConfig = { classes: [], background: { images: [], active: false }, ui: { style: 'liquid', backButton: { enabled: true, view: true, edit: true, app: true }, zoom: { enabled: true, view: true, edit: true, app: false } } };
       }
 
-      let savedBackButton = { enabled: true, view: true, edit: true, app: true };
-      try {
-        const val = localStorage.getItem('ui_back_button');
-        if (val !== null) {
-          if (val === 'true') savedBackButton = { enabled: true, view: true, edit: true, app: true };
-          else if (val === 'false') savedBackButton = { enabled: false, view: false, edit: false, app: false };
-          else savedBackButton = JSON.parse(val);
-        }
-      } catch {}
-
-      const bgImages = (fullConfig.background && Array.isArray(fullConfig.background.images)) ? fullConfig.background.images : [];
-      const bgActive = !!(fullConfig.background && fullConfig.background.active);
-      const uiStyle = (fullConfig.ui && fullConfig.ui.style) || 'liquid';
-      const uiZoom = (fullConfig.ui && fullConfig.ui.zoom) || { enabled: true, view: true, edit: true, app: false };
-      const rawBackButton = fullConfig?.ui?.backButton !== undefined ? fullConfig.ui.backButton : savedBackButton;
-      let uiBackButton = { enabled: true, view: true, edit: true, app: true };
-      if (rawBackButton === false) {
-        uiBackButton = { enabled: false, view: false, edit: false, app: false };
-      } else if (rawBackButton === true) {
-        uiBackButton = { enabled: true, view: true, edit: true, app: true };
-      } else if (typeof rawBackButton === 'object' && rawBackButton !== null) {
-        uiBackButton = {
-          enabled: rawBackButton.enabled !== false,
-          view: rawBackButton.view !== false,
-          edit: rawBackButton.edit !== false,
-          app: rawBackButton.app !== false
-        };
-      }
-
-      setUiConfig({
-          style: uiStyle,
-          zoom: uiZoom,
-          backButton: uiBackButton,
-          backgroundActive: bgActive,
-          backgrounds: bgImages
-      });
-      try {
-          localStorage.setItem('style_mode', uiStyle);
-      } catch (e) {
-          console.error(e);
-      }
-      
-      if (bgActive && Array.isArray(bgImages) && bgImages.length > 0) {
-        setCurrentBg(bgImages[Math.floor(Math.random() * bgImages.length)]);
-      }
-      setIsDataReady(true);
-  }, []);
+      applyConfig(fullConfig);
+  }, [applyConfig]);
 
   useEffect(() => {
     const triggerOnlineUpdate = (isConnected) => {
@@ -548,9 +562,7 @@ const App = () => {
                 </${Layout}>
                 ${isInitialLoading && html`
                   <${InitialLoadingScreen} 
-                    isDataReady=${isDataReady} 
-                    currentBg=${currentBg}
-                    bgActive=${uiConfig?.backgroundActive}
+                    onBootstrapData=${handleBootstrapData}
                     isLiquid=${uiConfig.style === 'liquid'}
                     isAppMode=${isAppMode}
                     onComplete=${() => setIsInitialLoading(false)}

@@ -1,23 +1,26 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { html } from '../utils/html.js';
 import { BookOpen } from 'lucide-react';
+import { apiService } from '../services/apiService.js';
 
 /**
- * Màn hình loading ban đầu:
- * - Nền trắng
- * - Ở giữa có logo và bên dưới logo là chữ "Nội dung ghi bài"
- * - Định dạng của logo và chữ đồng nhất 100% với logo trên header
- * - Logo có viền trong chạy từ chính giữa cạnh trên (0%) theo chiều kim đồng hồ quanh viền trong của logo đến 100% theo tiến độ thực tế
- * - Sau khi 100%, đợi 0.2s rồi ẩn viền trong mượt mà (thụt ra ngoài và bị đường viền thường của logo cắt dần rồi biến mất)
- * - Sau đó:
- *   + Logo thu nhỏ lại (scale down) và fade out
- *   + Chữ đặt ranh giới ngay đầu (overflow-hidden) và trượt lên trên biến mất
- *   + Khi cả 2 hiệu ứng chạy được 70% thì nền bắt đầu mờ dần cho đến khi 100% thì ẩn hoàn toàn màn hình loading
+ * Màn hình Loading ban đầu tự chủ động nạp toàn bộ tài nguyên còn lại và tính toán tiến độ:
+ * 1. Khởi động tức thì với 1 màn hình loading duy nhất.
+ * 2. Tự động điều phối (bootstrap) các tác vụ nền:
+ *    - Nạp Font & Typography: +15% (đạt 15%)
+ *    - Nạp Cấu hình hệ thống (apiService.getFullConfig): +25% (đạt 40%)
+ *    - Nạp Cây thư mục & Bài học (apiService.getAllNodes): +35% (đạt 75%)
+ *    - Nạp trước Hình nền (nếu bật chế độ nền): +15% (đạt 90%)
+ *    - Chuẩn bị DOM & KaTeX layout: +10% (đạt 100%)
+ * 3. Tiến độ chạy từ 0% đến 100% trên viền tròn logo từ giữa đỉnh theo chiều kim đồng hồ.
+ * 4. Khi đạt 100%, chờ 0.2s rồi chạy hiệu ứng Outro:
+ *    - Viền trong thụt ra ngoài (scale 1.22) và mờ dần biến mất
+ *    - Logo thu nhỏ (scale 0.65) và fade out
+ *    - Chữ trượt lên trên biến mất qua ranh giới cắt overflow-hidden ngay trên đầu
+ *    - Khi cả 2 hiệu ứng chạy được 70% thì nền trắng mờ dần đến 100% thì ẩn hoàn toàn và bàn giao dữ liệu cho App
  */
 export const InitialLoadingScreen = ({ 
-  isDataReady = false, 
-  currentBg = null,
-  bgActive = false,
+  onBootstrapData,
   onComplete, 
   isLiquid = true, 
   layoutError = false,
@@ -31,14 +34,10 @@ export const InitialLoadingScreen = ({
   const pathRef = useRef(null);
   const [pathLength, setPathLength] = useState(320);
 
-  const progressTargetRef = useRef(15);
+  const progressTargetRef = useRef(5);
   const currentProgressRef = useRef(0);
   const outroStartedRef = useRef(false);
-
-  // Trạng thái các thành phần cần nạp
-  const fontReadyRef = useRef(false);
-  const bgReadyRef = useRef(!bgActive || !currentBg);
-  const domRenderReadyRef = useRef(false);
+  const bootstrapCompletedPayloadRef = useRef(null);
 
   // 1. Tính toán chính xác chu vi của đường viền SVG
   useEffect(() => {
@@ -52,51 +51,17 @@ export const InitialLoadingScreen = ({
     }
   }, []);
 
-  // 2. Tính toán tiến trình thực tế dựa trên toàn bộ các thành phần (DOM, Font, Data, Nền, Render)
-  const calculateCombinedProgress = () => {
-    let p = 15; // Khởi tạo DOM ban đầu
-
-    if (fontReadyRef.current) p += 20; // Nạp font xong: +20%
-    if (isDataReady) p += 35; // Nạp dữ liệu bài học / config: +35%
-    if (bgReadyRef.current) p += 20; // Nạp hình nền (nếu có): +20%
-    if (domRenderReadyRef.current) p += 10; // Render thành phần DOM hoàn tất: +10%
-
-    return Math.min(100, p);
-  };
-
-  // 3. Theo dõi nạp hình nền nếu có
-  useEffect(() => {
-    if (bgActive && currentBg) {
-      bgReadyRef.current = false;
-      const img = new Image();
-      img.src = currentBg;
-      img.onload = () => {
-        bgReadyRef.current = true;
-        progressTargetRef.current = Math.max(progressTargetRef.current, calculateCombinedProgress());
-      };
-      img.onerror = () => {
-        bgReadyRef.current = true;
-        progressTargetRef.current = Math.max(progressTargetRef.current, calculateCombinedProgress());
-      };
-    } else {
-      bgReadyRef.current = true;
-      progressTargetRef.current = Math.max(progressTargetRef.current, calculateCombinedProgress());
-    }
-  }, [bgActive, currentBg]);
-
-  // 4. Theo dõi nạp dữ liệu bài học / cấu hình
-  useEffect(() => {
-    if (isDataReady) {
-      progressTargetRef.current = Math.max(progressTargetRef.current, calculateCombinedProgress());
-    }
-  }, [isDataReady]);
-
-  // 5. Kích hoạt chuỗi hiệu ứng kết thúc loading (Outro sequence)
+  // 2. Kích hoạt chuỗi hiệu ứng kết thúc loading (Outro sequence)
   const triggerOutro = () => {
     if (outroStartedRef.current) return;
     outroStartedRef.current = true;
     setProgress(100);
     setPhase('completed');
+
+    // Chuyển giao dữ liệu đã nạp sẵn cho App
+    if (onBootstrapData && bootstrapCompletedPayloadRef.current) {
+      onBootstrapData(bootstrapCompletedPayloadRef.current);
+    }
 
     // Sau 0.2s (200ms): Ẩn viền trong mượt mà (thụt ra ngoài và bị cắt dần)
     setTimeout(() => {
@@ -122,39 +87,17 @@ export const InitialLoadingScreen = ({
     }, 900);
   };
 
-  // 6. Quản lý mức tải và tiến trình tăng mượt mà (% tiến độ)
+  // 3. Quản lý bootstrap sequence tự động gợi nạp tất cả phần còn lại và tính tiến độ
   useEffect(() => {
     let isMounted = true;
     let animId = null;
 
     const updateTarget = (val) => {
       if (!isMounted) return;
-      progressTargetRef.current = Math.max(progressTargetRef.current, val);
+      progressTargetRef.current = Math.max(progressTargetRef.current, Math.min(100, val));
     };
 
-    if (document.readyState === 'complete') {
-      updateTarget(calculateCombinedProgress());
-    }
-
-    if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(() => {
-        if (!isMounted) return;
-        fontReadyRef.current = true;
-        updateTarget(calculateCombinedProgress());
-      }).catch(() => {
-        fontReadyRef.current = true;
-      });
-    }
-
-    // Đánh dấu layout DOM pass 1
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (!isMounted) return;
-        domRenderReadyRef.current = true;
-        updateTarget(calculateCombinedProgress());
-      });
-    });
-
+    // Tiến trình tăng mượt mà (% tiến độ)
     const stepLoop = () => {
       if (!isMounted) return;
 
@@ -163,7 +106,7 @@ export const InitialLoadingScreen = ({
 
       if (current < target) {
         const diff = target - current;
-        const step = Math.max(0.8, diff * 0.18);
+        const step = Math.max(0.6, diff * 0.15);
         const next = Math.min(100, current + step);
         currentProgressRef.current = next;
         setProgress(next);
@@ -178,12 +121,115 @@ export const InitialLoadingScreen = ({
 
     animId = requestAnimationFrame(stepLoop);
 
-    // Failsafe timer tối đa 2.2s đảm bảo trải nghiệm luôn thông suốt
+    // Quy trình nạp từng phần tài nguyên (Bootstrap Pipeline)
+    const runBootstrap = async () => {
+      let fullConfig = null;
+      let allNodes = [];
+      let selectedBg = null;
+
+      // Bước 1: Khởi tạo DOM & Font (+15% -> 15%)
+      try {
+        if (document.fonts && document.fonts.ready) {
+          await Promise.race([
+            document.fonts.ready,
+            new Promise(res => setTimeout(res, 400))
+          ]);
+        }
+      } catch (e) {}
+      updateTarget(15);
+
+      // Bước 2: Nạp Cấu hình hệ thống (+25% -> 40%)
+      try {
+        fullConfig = await Promise.race([
+          apiService.getFullConfig(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Config timeout')), 3500))
+        ]);
+        if (fullConfig && isAppMode) {
+          localStorage.setItem('cached_full_config', JSON.stringify(fullConfig));
+        }
+      } catch (e) {
+        console.warn("Bootstrap: config fetched from fallback/cache", e);
+        try {
+          const cached = localStorage.getItem('cached_full_config');
+          if (cached) fullConfig = JSON.parse(cached);
+        } catch {}
+      }
+      if (!fullConfig) {
+        fullConfig = { 
+          classes: [], 
+          background: { images: [], active: false }, 
+          ui: { style: 'liquid', backButton: { enabled: true, view: true, edit: true, app: true }, zoom: { enabled: true, view: true, edit: true, app: false } } 
+        };
+      }
+      updateTarget(40);
+
+      // Bước 3: Nạp Dữ liệu bài học & danh mục (+35% -> 75%)
+      try {
+        const authPass = sessionStorage.getItem('auth_pass');
+        allNodes = await Promise.race([
+          apiService.getAllNodes(authPass),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Nodes timeout')), 4000))
+        ]);
+        if (Array.isArray(allNodes)) {
+          try {
+            localStorage.setItem('cached_nodes', JSON.stringify(allNodes));
+          } catch {}
+        }
+      } catch (e) {
+        console.warn("Bootstrap: nodes fetched from fallback/cache", e);
+        try {
+          const cached = localStorage.getItem('cached_nodes');
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed)) allNodes = parsed;
+          }
+        } catch {}
+      }
+      updateTarget(75);
+
+      // Bước 4: Nạp trước hình nền nếu có (+15% -> 90%)
+      const bgActive = !!(fullConfig?.background && fullConfig?.background?.active);
+      const bgImages = (fullConfig?.background && Array.isArray(fullConfig?.background?.images)) ? fullConfig.background.images : [];
+      if (bgActive && bgImages.length > 0) {
+        selectedBg = bgImages[Math.floor(Math.random() * bgImages.length)];
+        if (selectedBg) {
+          await new Promise(resolve => {
+            const img = new Image();
+            img.onload = resolve;
+            img.onerror = resolve;
+            img.src = selectedBg;
+            setTimeout(resolve, 800); // Max 800ms cho ảnh nền
+          });
+        }
+      }
+      updateTarget(90);
+
+      // Bước 5: Chuẩn bị DOM layout & KaTeX (+10% -> 100%)
+      await new Promise(resolve => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            resolve();
+          });
+        });
+      });
+
+      bootstrapCompletedPayloadRef.current = {
+        fullConfig,
+        allNodes,
+        currentBg: selectedBg
+      };
+
+      updateTarget(100);
+    };
+
+    runBootstrap();
+
+    // Failsafe timer tối đa 3.5s đảm bảo không bao giờ bị kẹt
     const failsafe = setTimeout(() => {
       if (!isMounted) return;
       currentProgressRef.current = 100;
       triggerOutro();
-    }, 2200);
+    }, 3500);
 
     return () => {
       isMounted = false;
