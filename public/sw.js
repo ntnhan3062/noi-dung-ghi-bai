@@ -1,8 +1,7 @@
-const CACHE_NAME = 'noi-dung-ghi-bai-v5';
+const CACHE_NAME = 'noi-dung-ghi-bai-v6';
 const ASSETS_TO_CACHE = [
   './',
   'index.html',
-  'index.css',
   'index.js',
   'App.js',
   'utils/html.js',
@@ -14,6 +13,7 @@ const ASSETS_TO_CACHE = [
   'components/ChangePasswordModal.js',
   'components/EditorModal.js',
   'components/ErrorBoundary.js',
+  'components/InitialLoadingScreen.js',
   'components/NodeItem.js',
   'components/SettingsModal.js',
   'components/StatusPage.js',
@@ -27,8 +27,14 @@ const ASSETS_TO_CACHE = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker] Caching app shell & static assets (relative paths)');
-      return cache.addAll(ASSETS_TO_CACHE);
+      console.log('[Service Worker] Caching app shell & static assets');
+      return Promise.all(
+        ASSETS_TO_CACHE.map((url) => {
+          return cache.add(url).catch((err) => {
+            console.warn('[Service Worker] Asset skip (not found or bundled):', url);
+          });
+        })
+      );
     }).then(() => {
       return self.skipWaiting();
     })
