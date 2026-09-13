@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo, useRef, useLayoutEffect } from 'react';
 import { html } from '../utils/html.js';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Plus, Minus, ArrowLeft, LayoutGrid, List as ListIcon, Loader2, Save, X, KeyRound, CornerDownRight, ClipboardList, ArrowUpDown, LogOut, Mic, MicOff, Globe, Wand2, Settings, FolderInput } from 'lucide-react';
+import { Plus, Minus, ArrowLeft, LayoutGrid, List as ListIcon, Loader2, Save, X, KeyRound, CornerDownRight, ClipboardList, ArrowUpDown, LogOut, Mic, MicOff, Globe, Wand2, Settings, FolderInput, Folder, FileText } from 'lucide-react';
 import { apiService } from '../services/apiService.js';
 import { NodeType, ALLOWED_CHILDREN, NODE_LABELS } from '../types.js';
 import { NodeItem } from '../components/NodeItem.js';
@@ -286,8 +286,11 @@ export const Explorer = ({ mode, isAppMode, uiConfig, onInitialRenderComplete })
     }
   });
   const [isSorting, setIsSorting] = useState(false);
+  const [isEditingInlineTitle, setIsEditingInlineTitle] = useState(false);
+  const [inlineTitleValue, setInlineTitleValue] = useState('');
   const [error, setError] = useState(null);
 
+  const inlineTitleInputRef = useRef(null);
   const marqueeTitleRef = useRef(null);
   const marqueeTitleContainerRef = useRef(null);
   const lastInitializedLessonId = useRef(null);
@@ -403,7 +406,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig, onInitialRenderComplete })
 
   const fetchData = async (isBackground = false) => {
     if (isBackground && typeof document !== 'undefined' && document.hidden) return;
-    const isUserEditing = isEditingContent || isModalOpen || isPasswordModalOpen || isSorting || !!movingNode || saving;
+    const isUserEditing = isEditingContent || isModalOpen || isPasswordModalOpen || isSorting || saving;
     if (isBackground && isUserEditing) return;
     if (isFetchingRef.current) return;
     const shouldDelay = isAppMode && nodeId && !isBackground;
@@ -423,7 +426,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig, onInitialRenderComplete })
       const currentPass = mode === 'edit' ? sessionStorage.getItem('auth_pass') : null;
       const data = await apiService.getAllNodes(currentPass);
       if (Array.isArray(data)) {
-        const currentlyEditing = isEditingContent || isModalOpen || isPasswordModalOpen || isSorting || !!movingNode || saving;
+        const currentlyEditing = isEditingContent || isModalOpen || isPasswordModalOpen || isSorting || saving;
         if (!currentlyEditing) {
           setAllNodes(data);
           if (isAppMode) {
@@ -1518,6 +1521,42 @@ export const Explorer = ({ mode, isAppMode, uiConfig, onInitialRenderComplete })
   const handleEditTitle = (node) => { setModalMode('UPDATE'); setTargetType(node.type); setEditingNode(node); setIsModalOpen(true); };
   const toggleContentEditor = () => setIsEditingContent(true);
 
+  const startEditInlineTitle = () => {
+    if (mode !== 'edit' || isEditingContent) return;
+    setInlineTitleValue(currentNode?.title || '');
+    setIsEditingInlineTitle(true);
+  };
+
+  const handleSaveInlineTitle = async () => {
+    if (!isEditingInlineTitle) return;
+    const trimmed = (inlineTitleValue || '').trim();
+    setIsEditingInlineTitle(false);
+    if (!trimmed || trimmed === currentNode?.title) {
+      setInlineTitleValue(currentNode?.title || '');
+      return;
+    }
+    try {
+      const updatedNode = { ...currentNode, title: trimmed };
+      setAllNodes(prev => prev.map(n => n.id === updatedNode.id ? updatedNode : n));
+      await apiService.saveNode(updatedNode);
+      await fetchData(true);
+    } catch (e) {
+      alert("Lỗi khi lưu tên bài!");
+    }
+  };
+
+  useEffect(() => {
+    setIsEditingInlineTitle(false);
+    setInlineTitleValue(currentNode?.title || '');
+  }, [currentNode?.id]);
+
+  useEffect(() => {
+    if (isEditingInlineTitle && inlineTitleInputRef.current) {
+      inlineTitleInputRef.current.focus();
+      inlineTitleInputRef.current.select();
+    }
+  }, [isEditingInlineTitle]);
+
   const displayLessonContent = useMemo(() => {
     if (!currentNode?.content) return '';
     return normalizeMathSpans(currentNode.content);
@@ -1846,60 +1885,90 @@ export const Explorer = ({ mode, isAppMode, uiConfig, onInitialRenderComplete })
 
         return html`
             <div id="lesson-main-card" key="lesson-container" className=${`${containerStyle} overflow-hidden ${isEditingContent ? 'min-h-[350px]' : 'min-h-[700px]'} flex flex-col relative`}>
-              <div className=${`px-6 md:px-12 py-6 md:py-8 flex justify-between items-start z-20 ${headerStyle}`}>
-                <div key="lesson-header-info" className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-3 flex-wrap">
+              <div className=${`px-6 md:px-12 py-6 md:py-8 flex flex-col gap-4 z-20 ${headerStyle}`}>
+                <div key="lesson-header-top" className="flex items-center justify-between gap-4 w-full flex-wrap">
+                  <div className="flex items-center gap-3">
                     ${!isAppMode && html`
                         <span key="lesson-type-badge" className="inline-flex items-center px-3 py-1 rounded-full text-xs font-extrabold bg-gradient-to-r from-indigo-500 to-violet-500 text-white uppercase tracking-widest shadow-md shadow-indigo-500/20">
                           ${NODE_LABELS[NodeType.LESSON]}
                         </span>
                     `}
                   </div>
-                  <div key="title-box" className="relative flex items-center">
-                    <h1 
-                      ref=${marqueeTitleRef}
-                      className=${`font-serif font-bold text-slate-900 leading-tight drop-shadow-sm whitespace-normal ${isAppMode ? 'text-2xl md:text-3xl' : (isMultiLine ? 'text-xl md:text-3xl' : 'text-2xl md:text-4xl')}`}
-                      style=${selectNoneStyle}
-                    >
-                      ${hasMath && !isMathRendered ? html`
-                        <span 
-                          className="inline rounded-xl bg-slate-200/85 text-transparent select-none animate-pulse box-decoration-clone px-1 py-0.5"
-                          style=${{
-                            WebkitBoxDecorationBreak: 'clone',
-                            boxDecorationBreak: 'clone',
-                            userSelect: 'none',
-                            color: 'transparent',
-                            textShadow: 'none'
-                          }}
-                        >
-                          ${currentNode.title}
-                        </span>
-                      ` : (currentNode.title)}
-                    </h1>
+
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    ${mode === 'edit' && !isEditingContent && html`
+                      <button key="btn-open-editor" onClick=${toggleContentEditor} className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl text-sm font-bold hover:shadow-lg hover:shadow-indigo-500/30 hover:-translate-y-0.5 transition-all flex items-center gap-2 border border-white/20"><${LayoutGrid} size=${18} /> Soạn thảo</button>
+                    `}
+                    ${mode === 'edit' && isEditingContent && html`
+                      <div className="flex flex-wrap items-center justify-end gap-3">
+                        <div key="voice-controls" className=${`flex items-center rounded-xl p-1 mr-2 border shadow-sm ${isLiquid ? 'bg-white/50 backdrop-blur border-white/50' : 'bg-white border-slate-200'}`}>
+                           <button key="btn-voice" onClick=${toggleVoiceInput} className=${`p-2 rounded-lg transition-all flex items-center gap-2 ${isListening ? 'bg-red-500 text-white shadow-md animate-pulse' : 'text-slate-600 hover:bg-slate-100 hover:text-indigo-600'}`}>${isListening ? html`<${MicOff} key="mic-off" size=${18} />` : html`<${Mic} key="mic-on" size=${18} />`}</button>
+                           <div key="sep-1" className="h-6 w-px bg-slate-300 mx-1"></div>
+                           <select key="lang-select" value=${voiceLang} onChange=${(e) => setVoiceLang(e.target.value)} className="bg-transparent text-xs font-bold text-slate-600 outline-none cursor-pointer" disabled=${isListening}><option value="vi-VN">VN</option><option value="en-US">EN</option></select>
+                           <div key="sep-2" className="h-6 w-px bg-slate-300 mx-1"></div>
+                           <button key="btn-autoformat" onClick=${() => setAutoFormat(!autoFormat)} className=${`p-2 rounded-lg transition-all ${autoFormat ? 'text-indigo-600 bg-white shadow-sm' : 'text-slate-400'}`}><${Wand2} size=${18} /></button>
+                        </div>
+                        <button key="btn-cancel" onClick=${() => { setIsEditingContent(false); if(recognitionRef.current) recognitionRef.current.stop(); shouldListenRef.current = false; }} className="px-4 py-2 text-slate-600 hover:bg-white/60 rounded-xl text-sm font-bold transition-colors border border-transparent hover:border-white/50"><${X} size=${18} /> Hủy</button>
+                        <button key="btn-save" onClick=${handleSaveContent} disabled=${saving} className="px-6 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl text-sm font-bold hover:shadow-lg hover:shadow-emerald-500/30 hover:-translate-y-0.5 transition-all flex items-center gap-2 border border-white/20">${saving ? html`<${Loader2} key="loader-icon" size=${18} className="animate-spin"/>` : html`<${Save} key="save-icon" size=${18} />`} ${saving ? 'Đang lưu...' : 'Lưu bài'}</button>
+                      </div>
+                    `}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0 ml-4">
-                  ${mode === 'edit' && !isEditingContent && html`
-                     <div key="edit-actions" className="flex gap-3">
-                      <button key="btn-move-lesson" onClick=${() => handleStartMove(currentNode)} className=${`px-4 py-2 text-amber-600 rounded-xl font-sans text-sm font-bold transition-all border flex items-center gap-1.5 ${isLiquid ? 'hover:bg-white/60 hover:text-amber-700 border-transparent hover:border-white/50 hover:shadow-sm' : 'hover:bg-amber-50 border-slate-200'}`} title="Di chuyển bài học này"><${FolderInput} size=${16} /> Di chuyển</button>
-                      <button key="btn-edit-title" onClick=${() => handleEditTitle(currentNode)} className=${`px-4 py-2 text-slate-600 rounded-xl font-sans text-sm font-bold transition-all border ${isLiquid ? 'hover:bg-white/60 hover:text-indigo-600 border-transparent hover:border-white/50 hover:shadow-sm' : 'hover:bg-slate-50 border-slate-200'}`}>Sửa tên</button>
-                      <button key="btn-open-editor" onClick=${toggleContentEditor} className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl text-sm font-bold hover:shadow-lg hover:shadow-indigo-500/30 hover:-translate-y-0.5 transition-all flex items-center gap-2 border border-white/20"><${LayoutGrid} size=${18} /> Soạn thảo</button>
+
+                <div key="title-box-wrapper" className="w-full">
+                  ${(mode === 'edit' && isEditingInlineTitle) ? html`
+                    <textarea
+                      ref=${inlineTitleInputRef}
+                      rows="1"
+                      value=${inlineTitleValue}
+                      onInput=${(e) => {
+                        setInlineTitleValue(e.target.value);
+                        e.target.style.height = 'auto';
+                        e.target.style.height = `${e.target.scrollHeight}px`;
+                      }}
+                      onKeyDown=${(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSaveInlineTitle();
+                        } else if (e.key === 'Escape') {
+                          e.preventDefault();
+                          setIsEditingInlineTitle(false);
+                          setInlineTitleValue(currentNode?.title || '');
+                        }
+                      }}
+                      onBlur=${handleSaveInlineTitle}
+                      className=${`w-full font-serif font-bold text-slate-900 leading-tight ${isAppMode ? 'text-2xl md:text-3xl' : 'text-2xl md:text-4xl'} bg-slate-50/90 border-2 border-indigo-500 rounded-xl px-3 py-1.5 outline-none resize-none shadow-sm transition-all`}
+                    />
+                  ` : html`
+                    <div 
+                      key="title-box" 
+                      className=${`w-full relative flex items-center ${mode === 'edit' && !isEditingContent ? 'cursor-pointer group' : ''}`}
+                      onClick=${startEditInlineTitle}
+                      title=${mode === 'edit' && !isEditingContent ? 'Bấm vào để sửa tên bài' : undefined}
+                    >
+                      <h1 
+                        ref=${marqueeTitleRef}
+                        className=${`w-full font-serif font-bold text-slate-900 leading-tight drop-shadow-sm whitespace-normal break-words ${isAppMode ? 'text-2xl md:text-3xl' : (isMultiLine ? 'text-xl md:text-3xl' : 'text-2xl md:text-4xl')} ${mode === 'edit' && !isEditingContent ? 'group-hover:text-indigo-700 transition-colors' : ''}`}
+                        style=${selectNoneStyle}
+                      >
+                        ${hasMath && !isMathRendered ? html`
+                          <span 
+                            className="inline rounded-xl bg-slate-200/85 text-transparent select-none animate-pulse box-decoration-clone px-1 py-0.5"
+                            style=${{
+                              WebkitBoxDecorationBreak: 'clone',
+                              boxDecorationBreak: 'clone',
+                              userSelect: 'none',
+                              color: 'transparent',
+                              textShadow: 'none'
+                            }}
+                          >
+                            ${currentNode.title}
+                          </span>
+                        ` : (currentNode.title)}
+                      </h1>
                     </div>
                   `}
                 </div>
-                ${mode === 'edit' && isEditingContent && html`
-                  <div className="flex flex-wrap items-center justify-end gap-3">
-                    <div key="voice-controls" className=${`flex items-center rounded-xl p-1 mr-2 border shadow-sm ${isLiquid ? 'bg-white/50 backdrop-blur border-white/50' : 'bg-white border-slate-200'}`}>
-                       <button key="btn-voice" onClick=${toggleVoiceInput} className=${`p-2 rounded-lg transition-all flex items-center gap-2 ${isListening ? 'bg-red-500 text-white shadow-md animate-pulse' : 'text-slate-600 hover:bg-slate-100 hover:text-indigo-600'}`}>${isListening ? html`<${MicOff} key="mic-off" size=${18} />` : html`<${Mic} key="mic-on" size=${18} />`}</button>
-                       <div key="sep-1" className="h-6 w-px bg-slate-300 mx-1"></div>
-                       <select key="lang-select" value=${voiceLang} onChange=${(e) => setVoiceLang(e.target.value)} className="bg-transparent text-xs font-bold text-slate-600 outline-none cursor-pointer" disabled=${isListening}><option value="vi-VN">VN</option><option value="en-US">EN</option></select>
-                       <div key="sep-2" className="h-6 w-px bg-slate-300 mx-1"></div>
-                       <button key="btn-autoformat" onClick=${() => setAutoFormat(!autoFormat)} className=${`p-2 rounded-lg transition-all ${autoFormat ? 'text-indigo-600 bg-white shadow-sm' : 'text-slate-400'}`}><${Wand2} size=${18} /></button>
-                    </div>
-                    <button key="btn-cancel" onClick=${() => { setIsEditingContent(false); if(recognitionRef.current) recognitionRef.current.stop(); shouldListenRef.current = false; }} className="px-4 py-2 text-slate-600 hover:bg-white/60 rounded-xl text-sm font-bold transition-colors border border-transparent hover:border-white/50"><${X} size=${18} /> Hủy</button>
-                    <button key="btn-save" onClick=${handleSaveContent} disabled=${saving} className="px-6 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl text-sm font-bold hover:shadow-lg hover:shadow-emerald-500/30 hover:-translate-y-0.5 transition-all flex items-center gap-2 border border-white/20">${saving ? html`<${Loader2} key="loader-icon" size=${18} className="animate-spin"/>` : html`<${Save} key="save-icon" size=${18} />`} ${saving ? 'Đang lưu...' : 'Lưu bài'}</button>
-                  </div>
-                `}
               </div>
               
               <div className=${`relative flex flex-col ${isEditingContent ? 'min-h-[350px]' : 'flex-1 h-full'}`}>
@@ -2057,22 +2126,33 @@ export const Explorer = ({ mode, isAppMode, uiConfig, onInitialRenderComplete })
       </div>
 
       ${mode === 'edit' && movingNode && html`
-        <div key="moving-node-bar" className="fixed bottom-0 left-0 right-0 z-50 p-4 animate-in slide-in-from-bottom-10">
-            <div key="moving-bar-inner" className="max-w-xl mx-auto bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between border border-slate-700/50 backdrop-blur-xl">
-                <div key="moving-info" className="flex items-center gap-3">
-                    <div key="moving-icon" className="p-2 bg-indigo-500 rounded-lg"><${ClipboardList} size=${20} /></div>
-                    <div key="moving-text">
-                        <p className="text-sm font-bold text-slate-200">Đang di chuyển: <span className="text-white font-semibold">${movingNode.title}</span></p>
-                        <p className="text-xs text-slate-400">Đến: ${currentNode ? currentNode.title : 'Trang chủ'}</p>
+        <div key="moving-node-bar" className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:bottom-6 md:w-96 z-50 animate-in slide-in-from-bottom-10">
+            <div key="moving-bar-inner" className="bg-slate-900/95 text-white p-3.5 rounded-2xl shadow-2xl flex items-center justify-between border border-slate-700/60 backdrop-blur-xl gap-3">
+                <div key="moving-info" className="flex items-center gap-3 min-w-0 flex-1">
+                    <div key="moving-icon" className="p-2.5 bg-indigo-600 text-white rounded-xl flex-shrink-0 flex items-center justify-center shadow-md shadow-indigo-600/30">
+                      ${movingNode.type === NodeType.LESSON 
+                        ? html`<${FileText} size=${18} />` 
+                        : html`<${Folder} size=${18} />`}
+                    </div>
+                    <div key="moving-text" className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-slate-100 line-clamp-2 leading-snug break-words overflow-hidden" title=${movingNode.title}>
+                          ${movingNode.title}
+                        </p>
                     </div>
                 </div>
-                <div key="moving-actions" className="flex items-center gap-2">
-                    <button key="btn-cancel-move" onClick=${handleCancelMove} className="px-4 py-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-xl text-sm font-bold transition-colors">Hủy</button>
+                <div key="moving-actions" className="flex flex-col gap-1.5 flex-shrink-0">
                     ${currentNode?.id === movingNode.id ? html`
-                      <button key="btn-paste-disabled" disabled className="px-4 py-2 bg-slate-700 text-slate-400 rounded-xl text-sm font-bold cursor-not-allowed flex items-center gap-2" title="Không thể dán vào chính nó"><${CornerDownRight} size=${16} /> Dán vào đây</button>
+                      <button key="btn-paste-disabled" disabled className="px-3 py-1.5 bg-slate-800 text-slate-500 rounded-lg text-xs font-bold cursor-not-allowed flex items-center justify-center gap-1.5 whitespace-nowrap border border-slate-700/50" title="Không thể dán vào chính nó">
+                        <${CornerDownRight} size=${14} /> Dán
+                      </button>
                     ` : html`
-                      <button key="btn-paste" onClick=${handlePasteNode} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-900/50 flex items-center gap-2"><${CornerDownRight} size=${16} /> Dán vào đây</button>
+                      <button key="btn-paste" onClick=${handlePasteNode} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-indigo-900/40 flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-95">
+                        <${CornerDownRight} size=${14} /> Dán
+                      </button>
                     `}
+                    <button key="btn-cancel-move" onClick=${handleCancelMove} className="px-3 py-1.5 text-slate-400 hover:text-slate-200 hover:bg-white/10 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-95">
+                      <${X} size=${14} /> Hủy
+                    </button>
                 </div>
             </div>
         </div>
