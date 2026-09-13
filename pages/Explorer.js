@@ -394,6 +394,9 @@ export const Explorer = ({ mode, isAppMode, uiConfig, onInitialRenderComplete })
   }, [isEditingContent, setBreadcrumbsVisible]);
 
   const fetchData = async (isBackground = false) => {
+    if (isBackground && typeof document !== 'undefined' && document.hidden) return;
+    const isUserEditing = isEditingContent || isModalOpen || isPasswordModalOpen || isSorting || !!movingNode || saving;
+    if (isBackground && isUserEditing) return;
     if (isFetchingRef.current) return;
     const shouldDelay = isAppMode && nodeId && !isBackground;
     const startTime = Date.now();
@@ -412,7 +415,8 @@ export const Explorer = ({ mode, isAppMode, uiConfig, onInitialRenderComplete })
       const currentPass = mode === 'edit' ? sessionStorage.getItem('auth_pass') : null;
       const data = await apiService.getAllNodes(currentPass);
       if (Array.isArray(data)) {
-        if (!isSorting && !isEditingContent) {
+        const currentlyEditing = isEditingContent || isModalOpen || isPasswordModalOpen || isSorting || !!movingNode || saving;
+        if (!currentlyEditing) {
           setAllNodes(data);
           if (isAppMode) {
             try {
@@ -792,21 +796,66 @@ export const Explorer = ({ mode, isAppMode, uiConfig, onInitialRenderComplete })
   }, [currentNode?.id, currentNode?.type]);
 
   useEffect(() => {
-    const intervalId = setInterval(() => {
-      if (!isSorting && !isEditingContent) fetchData(true);
-    }, 1000);
-    return () => clearInterval(intervalId);
-  }, [mode, isSorting, isEditingContent]);
+    const isUserEditing = isEditingContent || isModalOpen || isPasswordModalOpen || isSorting || !!movingNode || saving;
+    if (isUserEditing) return;
+
+    let intervalId = null;
+
+    const startPolling = () => {
+      if (intervalId) clearInterval(intervalId);
+      intervalId = setInterval(() => {
+        if (typeof document !== 'undefined' && document.hidden) return;
+        fetchData(true);
+      }, 1000);
+    };
+
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.hidden) {
+        stopPolling();
+      } else {
+        const currentlyEditing = isEditingContent || isModalOpen || isPasswordModalOpen || isSorting || !!movingNode || saving;
+        if (!currentlyEditing) {
+          // Bắt đầu GET ngay lập tức khi người dùng quay lại trang
+          fetchData(true);
+          // Bắt đầu lại quy trình polling 1s/lần từ thời điểm này
+          startPolling();
+        }
+      }
+    };
+
+    if (typeof document === 'undefined' || !document.hidden) {
+      startPolling();
+    }
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+
+    return () => {
+      stopPolling();
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
+    };
+  }, [mode, isSorting, isEditingContent, isModalOpen, isPasswordModalOpen, movingNode, saving]);
 
   useEffect(() => {
     const handleOnlineEvent = () => {
-      if (isAppMode && !isSorting && !isEditingContent) {
+      const isUserEditing = isEditingContent || isModalOpen || isPasswordModalOpen || isSorting || !!movingNode || saving;
+      if (isAppMode && !isUserEditing) {
         fetchData(true);
       }
     };
     window.addEventListener('app-network-online', handleOnlineEvent);
     return () => window.removeEventListener('app-network-online', handleOnlineEvent);
-  }, [isAppMode, isSorting, isEditingContent]);
+  }, [isAppMode, isSorting, isEditingContent, isModalOpen, isPasswordModalOpen, movingNode, saving]);
 
   useEffect(() => {
     if (isSorting && sortableListRef.current) {
