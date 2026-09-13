@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo, useRef, useLayoutEffect } from 'react';
 import { html } from '../utils/html.js';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Plus, Minus, ArrowLeft, LayoutGrid, List as ListIcon, Loader2, Save, X, KeyRound, CornerDownRight, ClipboardList, ArrowUpDown, LogOut, Mic, MicOff, Globe, Wand2, Settings } from 'lucide-react';
+import { Plus, Minus, ArrowLeft, LayoutGrid, List as ListIcon, Loader2, Save, X, KeyRound, CornerDownRight, ClipboardList, ArrowUpDown, LogOut, Mic, MicOff, Globe, Wand2, Settings, FolderInput } from 'lucide-react';
 import { apiService } from '../services/apiService.js';
 import { NodeType, ALLOWED_CHILDREN, NODE_LABELS } from '../types.js';
 import { NodeItem } from '../components/NodeItem.js';
@@ -277,7 +277,14 @@ export const Explorer = ({ mode, isAppMode, uiConfig, onInitialRenderComplete })
   const [autoFormat, setAutoFormat] = useState(true);
   const [isListening, setIsListening] = useState(false);
   const [voiceLang, setVoiceLang] = useState('vi-VN');
-  const [movingNode, setMovingNode] = useState(null);
+  const [movingNode, setMovingNode] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('moving_node_data');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [isSorting, setIsSorting] = useState(false);
   const [error, setError] = useState(null);
 
@@ -927,7 +934,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig, onInitialRenderComplete })
             'Verdana=verdana,geneva; ' +
             'Webdings=webdings; ' +
             'Wingdings=wingdings,zapf dingbats',
-          content_style: 'body { margin: 1.5rem; background-color: #ffffff; } @keyframes math-skeleton-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } } .math-tex:not(.is-rendered):not(:has(.katex)) { display: inline-block !important; vertical-align: -0.15em; width: 3.75rem; height: 1.15em; margin: 0 0.25rem; border-radius: 4px; background: linear-gradient(90deg, #e2e8f0 20%, #f1f5f9 40%, #e2e8f0 60%); background-size: 200% 100%; animation: math-skeleton-shimmer 1.5s ease-in-out infinite; color: transparent !important; } .math-tex.is-rendered { opacity: 1; visibility: visible; overflow: visible !important; padding: 0.35em 0.15em !important; line-height: normal !important; } .math-tex.is-rendered::-webkit-scrollbar { width: 0; height: 0; background-color: rgba(0,0,0,0); } .katex-html { display: none !important; } .katex-mathml { display: inline-block !important; padding: 0.25em 0 !important; line-height: normal !important; vertical-align: middle !important; } .katex-mathml math { overflow: visible !important; } .katex-display { display: block !important; width: 100% !important; padding: 0.75em 0.5em !important; overflow-x: auto !important; overflow-y: clip !important; scrollbar-width: none !important; -ms-overflow-style: none !important; } .katex-display::-webkit-scrollbar { width: 0; height: 0; background-color: rgba(0,0,0,0); } .katex { font-size: 1.15em !important; line-height: normal !important; overflow: visible !important; } #voice-interim { color: #94a3b8; background-color: #f1f5f9; padding: 0 2px; border-radius: 2px; }',
+          content_style: 'body { margin: 1.5rem; background-color: #ffffff; } @keyframes math-skeleton-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } } .math-tex:not(.is-rendered):not(:has(.katex)) { display: inline-block !important; vertical-align: -0.15em; width: 3.75rem; height: 1.15em; margin: 0 0.25rem; border-radius: 4px; background: linear-gradient(90deg, #e2e8f0 20%, #f1f5f9 40%, #e2e8f0 60%); background-size: 200% 100%; animation: math-skeleton-shimmer 1.5s ease-in-out infinite; color: transparent !important; } .math-tex.is-rendered { opacity: 1; visibility: visible; overflow: visible !important; padding: 0.35em 0.15em !important; line-height: normal !important; font-size: inherit !important; } .math-tex.is-rendered::-webkit-scrollbar { width: 0; height: 0; background-color: rgba(0,0,0,0); } .katex-html { display: none !important; } .katex-mathml { display: inline-block !important; padding: 0.25em 0 !important; line-height: normal !important; vertical-align: middle !important; font-size: 1em !important; } .katex-mathml math { overflow: visible !important; font-size: 1em !important; } .katex-display { display: block !important; width: 100% !important; padding: 0.75em 0.5em !important; overflow-x: auto !important; overflow-y: clip !important; scrollbar-width: none !important; -ms-overflow-style: none !important; } .katex-display::-webkit-scrollbar { width: 0; height: 0; background-color: rgba(0,0,0,0); } .katex { font-size: 1em !important; line-height: normal !important; overflow: visible !important; } #voice-interim { color: #94a3b8; background-color: #f1f5f9; padding: 0 2px; border-radius: 2px; }',
           branding: false,
           promotion: false,
           formats: {
@@ -1606,11 +1613,34 @@ export const Explorer = ({ mode, isAppMode, uiConfig, onInitialRenderComplete })
       alert("Lỗi khi lưu sắp xếp!");
     }
   };
-  const handleStartMove = (node) => setMovingNode(node);
-  const handleCancelMove = () => setMovingNode(null);
+  const handleStartMove = (node) => {
+    setMovingNode(node);
+    try {
+      sessionStorage.setItem('moving_node_data', JSON.stringify(node));
+    } catch {}
+  };
+  const handleCancelMove = () => {
+    setMovingNode(null);
+    try {
+      sessionStorage.removeItem('moving_node_data');
+    } catch {}
+  };
   const handlePasteNode = async () => {
     if (!movingNode) return;
-    if (movingNode.id === nodeId) { alert("Không thể di chuyển thư mục vào chính nó."); return; }
+    if (movingNode.id === nodeId) { alert("Không thể di chuyển mục vào chính nó."); return; }
+    
+    // Check if current destination is a descendant of movingNode
+    if (nodeId && Array.isArray(allNodes)) {
+      let curr = allNodes.find(n => n.id === nodeId);
+      while (curr && curr.parentId) {
+        if (curr.parentId === movingNode.id) {
+          alert("Không thể di chuyển thư mục vào bên trong thư mục con của nó.");
+          return;
+        }
+        curr = allNodes.find(n => n.id === curr.parentId);
+      }
+    }
+
     setLoading(true);
     startProgress(15);
     try {
@@ -1619,6 +1649,9 @@ export const Explorer = ({ mode, isAppMode, uiConfig, onInitialRenderComplete })
       const updates = [{ id: movingNode.id, parentId: nodeId || null, orderIndex: maxOrder + 1 }];
       await apiService.batchUpdateNodes(updates);
       setMovingNode(null); 
+      try {
+        sessionStorage.removeItem('moving_node_data');
+      } catch {}
       updateProgress(80);
       await fetchData(true); 
       completeProgress();
@@ -1848,6 +1881,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig, onInitialRenderComplete })
                 <div className="flex items-center gap-2 flex-shrink-0 ml-4">
                   ${mode === 'edit' && !isEditingContent && html`
                      <div key="edit-actions" className="flex gap-3">
+                      <button key="btn-move-lesson" onClick=${() => handleStartMove(currentNode)} className=${`px-4 py-2 text-amber-600 rounded-xl font-sans text-sm font-bold transition-all border flex items-center gap-1.5 ${isLiquid ? 'hover:bg-white/60 hover:text-amber-700 border-transparent hover:border-white/50 hover:shadow-sm' : 'hover:bg-amber-50 border-slate-200'}`} title="Di chuyển bài học này"><${FolderInput} size=${16} /> Di chuyển</button>
                       <button key="btn-edit-title" onClick=${() => handleEditTitle(currentNode)} className=${`px-4 py-2 text-slate-600 rounded-xl font-sans text-sm font-bold transition-all border ${isLiquid ? 'hover:bg-white/60 hover:text-indigo-600 border-transparent hover:border-white/50 hover:shadow-sm' : 'hover:bg-slate-50 border-slate-200'}`}>Sửa tên</button>
                       <button key="btn-open-editor" onClick=${toggleContentEditor} className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl text-sm font-bold hover:shadow-lg hover:shadow-indigo-500/30 hover:-translate-y-0.5 transition-all flex items-center gap-2 border border-white/20"><${LayoutGrid} size=${18} /> Soạn thảo</button>
                     </div>
@@ -1949,24 +1983,6 @@ export const Explorer = ({ mode, isAppMode, uiConfig, onInitialRenderComplete })
         `}
       </header>
 
-      ${movingNode && html`
-        <div key="moving-node-bar" className="fixed bottom-0 left-0 right-0 z-50 p-4 animate-in slide-in-from-bottom-10">
-            <div key="moving-bar-inner" className="max-w-xl mx-auto bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between border border-slate-700/50 backdrop-blur-xl">
-                <div key="moving-info" className="flex items-center gap-3">
-                    <div key="moving-icon" className="p-2 bg-indigo-500 rounded-lg"><${ClipboardList} size=${20} /></div>
-                    <div key="moving-text">
-                        <p className="text-sm font-bold text-slate-200">Đang di chuyển: <span className="text-white">${movingNode.title}</span></p>
-                        <p className="text-xs text-slate-400">Đến: ${currentNode ? currentNode.title : 'Thư mục gốc'}</p>
-                    </div>
-                </div>
-                <div key="moving-actions" className="flex items-center gap-2">
-                    <button key="btn-cancel-move" onClick=${handleCancelMove} className="px-4 py-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-xl text-sm font-bold transition-colors">Hủy</button>
-                    <button key="btn-paste" onClick=${handlePasteNode} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-900/50 flex items-center gap-2"><${CornerDownRight} size=${16} /> Dán vào đây</button>
-                </div>
-            </div>
-        </div>
-      `}
-
       ${mode === 'edit' && allowedChildTypes && allowedChildTypes.length > 0 && !isSorting && html`
         <div key="edit-controls" className="mb-8 flex flex-wrap gap-3">
           ${allowedChildTypes.map(type => html`
@@ -2039,6 +2055,28 @@ export const Explorer = ({ mode, isAppMode, uiConfig, onInitialRenderComplete })
       <div className="px-2 pb-20">
          ${renderMainContent()}
       </div>
+
+      ${mode === 'edit' && movingNode && html`
+        <div key="moving-node-bar" className="fixed bottom-0 left-0 right-0 z-50 p-4 animate-in slide-in-from-bottom-10">
+            <div key="moving-bar-inner" className="max-w-xl mx-auto bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between border border-slate-700/50 backdrop-blur-xl">
+                <div key="moving-info" className="flex items-center gap-3">
+                    <div key="moving-icon" className="p-2 bg-indigo-500 rounded-lg"><${ClipboardList} size=${20} /></div>
+                    <div key="moving-text">
+                        <p className="text-sm font-bold text-slate-200">Đang di chuyển: <span className="text-white font-semibold">${movingNode.title}</span></p>
+                        <p className="text-xs text-slate-400">Đến: ${currentNode ? currentNode.title : 'Trang chủ'}</p>
+                    </div>
+                </div>
+                <div key="moving-actions" className="flex items-center gap-2">
+                    <button key="btn-cancel-move" onClick=${handleCancelMove} className="px-4 py-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-xl text-sm font-bold transition-colors">Hủy</button>
+                    ${currentNode?.id === movingNode.id ? html`
+                      <button key="btn-paste-disabled" disabled className="px-4 py-2 bg-slate-700 text-slate-400 rounded-xl text-sm font-bold cursor-not-allowed flex items-center gap-2" title="Không thể dán vào chính nó"><${CornerDownRight} size=${16} /> Dán vào đây</button>
+                    ` : html`
+                      <button key="btn-paste" onClick=${handlePasteNode} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-900/50 flex items-center gap-2"><${CornerDownRight} size=${16} /> Dán vào đây</button>
+                    `}
+                </div>
+            </div>
+        </div>
+      `}
 
       ${canShowZoom && html`
         <div key="zoom-controls" className="fixed bottom-8 right-6 flex flex-col gap-2 z-40 animate-in slide-in-from-right-10">
