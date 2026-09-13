@@ -613,9 +613,14 @@
           ktJs.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js';
           ktJs.onload = function() {
             if (window.__setBootProgressTarget) window.__setBootProgressTarget(35);
-            var ktAuto = document.createElement('script');
-            ktAuto.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js';
-            document.head.appendChild(ktAuto);
+            var ktChem = document.createElement('script');
+            ktChem.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/mhchem.min.js';
+            ktChem.onload = function() {
+              var ktAuto = document.createElement('script');
+              ktAuto.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js';
+              document.head.appendChild(ktAuto);
+            };
+            document.head.appendChild(ktChem);
           };
           document.head.appendChild(ktJs);
 

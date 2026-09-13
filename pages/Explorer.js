@@ -92,6 +92,7 @@ export const normalizeMathSpans = (html) => {
 export const hasLatexMath = (content) => {
   if (!content || typeof content !== 'string') return false;
   if (content.includes('math-tex') || content.includes('katex')) return true;
+  if (content.includes('\\ce{') || content.includes('\\ce {') || content.includes('\\pu{')) return true;
   if (/\$\$[\s\S]+?\$\$/.test(content)) return true;
   if (/\\\[[\s\S]+?\\\]/.test(content)) return true;
   if (/\\\([\s\S]+?\\\)/.test(content)) return true;
@@ -101,7 +102,7 @@ export const hasLatexMath = (content) => {
       return true;
     }
   }
-  if (/\\[a-zA-Z]+/.test(content) && /\\(frac|sqrt|sum|int|prod|alpha|beta|gamma|delta|epsilon|theta|lambda|pi|sigma|omega|partial|infty|leq|geq|neq|approx|times|div|pm|mp|cdot|circ|bullet|rightarrow|leftarrow|Rightarrow|Leftarrow|to|vec|hat|bar|text|mathbf|mathrm|sin|cos|tan|cot|ln|log)/.test(content)) {
+  if (/\\[a-zA-Z]+/.test(content) && /\\(ce|pu|frac|sqrt|sum|int|prod|alpha|beta|gamma|delta|epsilon|theta|lambda|pi|sigma|omega|partial|infty|leq|geq|neq|approx|times|div|pm|mp|cdot|circ|bullet|rightarrow|leftarrow|Rightarrow|Leftarrow|to|vec|hat|bar|text|mathbf|mathrm|sin|cos|tan|cot|ln|log)/.test(content)) {
     return true;
   }
   return false;
@@ -733,14 +734,20 @@ export const Explorer = ({ mode, isAppMode, uiConfig, onInitialRenderComplete })
         const s1 = document.createElement('script');
         s1.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js';
         s1.onload = () => {
-          console.log('KaTeX: Core loaded, now loading auto-render...');
-          const s2 = document.createElement('script');
-          s2.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js';
-          s2.onload = () => {
-            console.log('KaTeX: All scripts re-injected successfully.');
-            renderMath();
+          console.log('KaTeX: Core loaded, now loading mhchem...');
+          const sChem = document.createElement('script');
+          sChem.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/mhchem.min.js';
+          sChem.onload = () => {
+            console.log('KaTeX: mhchem loaded, now loading auto-render...');
+            const s2 = document.createElement('script');
+            s2.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js';
+            s2.onload = () => {
+              console.log('KaTeX: All scripts re-injected successfully.');
+              renderMath();
+            };
+            document.head.appendChild(s2);
           };
-          document.head.appendChild(s2);
+          document.head.appendChild(sChem);
         };
         document.head.appendChild(s1);
       }
@@ -983,21 +990,25 @@ export const Explorer = ({ mode, isAppMode, uiConfig, onInitialRenderComplete })
             
             editor.ui.registry.addButton('math', {
               icon: 'math',
-              tooltip: 'Nhập công thức toán học',
+              tooltip: 'Nhập công thức Toán học / Hoá học',
               onAction: () => {
                 editor.windowManager.open({
-                  title: 'Nhập công thức Toán học',
+                  title: 'Nhập công thức Toán học / Hoá học',
                   body: {
                     type: 'panel',
                     items: [
                       {
                         type: 'textarea',
                         name: 'latex',
-                        label: 'Nhập mã LaTeX'
+                        label: 'Nhập mã LaTeX / mhchem'
                       },
                       {
                         type: 'htmlpanel',
-                        html: '<p style="font-size: 12px; color: #666;">Gợi ý: \\frac{a}{b} cho phân số, \\sqrt{x} cho căn bậc hai, x^{2} cho số mũ. </br><a href="https://latex.codecogs.com/eqneditor/editor.php" target="_blank" style="color: #4f46e5; text-decoration: underline;">Mở trình soạn thảo trực quan</a></p>'
+                        html: '<p style="font-size: 12px; color: #666; line-height: 1.5;">' +
+                              '<b>Toán học:</b> \\frac{a}{b}, \\sqrt{x}, x^{2}<br/>' +
+                              '<b>Hoá học (mhchem):</b> \\ce{2H2 + O2 -> 2H2O}, \\ce{Fe^{2+} + 2e- -> Fe}, \\ce{CaCO3 ->[t^o] CaO + CO2 ^}<br/>' +
+                              '<a href="https://latex.codecogs.com/eqneditor/editor.php" target="_blank" style="color: #4f46e5; text-decoration: underline;">Mở trình soạn thảo trực quan</a>' +
+                              '</p>'
                       }
                     ]
                   },
