@@ -248,7 +248,7 @@
         visibility: visible !important;
         color: inherit !important;
         font-size: inherit !important;
-        line-height: inherit !important;
+        line-height: normal !important;
         background: transparent !important;
         box-shadow: none !important;
         animation: none !important;
@@ -263,14 +263,16 @@
 
       .math-tex.math-inline.is-rendered,
       .math-tex.math-inline:has(.katex) {
-        display: inline-flex !important;
-        align-items: center !important;
+        display: inline-block !important;
         vertical-align: middle !important;
         width: auto !important;
         height: auto !important;
         max-width: 100% !important;
-        margin: 0 !important;
-        overflow-x: auto !important;
+        margin: 0 0.15em !important;
+        padding: 0.35em 0.15em !important;
+        overflow: visible !important;
+        overflow-x: visible !important;
+        overflow-y: visible !important;
         scrollbar-width: none !important;
         -ms-overflow-style: none !important;
       }
@@ -281,8 +283,11 @@
         width: 100% !important;
         height: auto !important;
         margin: 1.5em 0 !important;
+        padding: 0.75em 0.5em !important;
         text-align: center !important;
         overflow-x: auto !important;
+        overflow-y: clip !important;
+        overscroll-behavior-y: contain !important;
         scrollbar-width: none !important;
         -ms-overflow-style: none !important;
       }
@@ -312,14 +317,24 @@
         height: auto !important;
         overflow: visible !important;
         white-space: normal !important;
+        padding: 0.25em 0 !important;
+        line-height: normal !important;
+        vertical-align: middle !important;
+      }
+
+      .katex-mathml math {
+        overflow: visible !important;
       }
 
       .katex-display {
         display: block !important;
         margin: 1.5em 0 !important;
+        padding: 0.75em 0.5em !important;
         width: 100% !important;
         text-align: center !important;
         overflow-x: auto !important;
+        overflow-y: clip !important;
+        overscroll-behavior-y: contain !important;
         scrollbar-width: none !important;
         -ms-overflow-style: none !important;
       }
@@ -332,8 +347,9 @@
       
       .katex {
         font-size: 1.15em !important;
-        line-height: 1.2 !important;
+        line-height: normal !important;
         text-indent: 0 !important;
+        overflow: visible !important;
       }
 
       /* Fix for Tailwind Typography (prose) */
