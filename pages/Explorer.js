@@ -24,7 +24,7 @@ export const normalizeMathSpans = (html) => {
   const mathSpans = Array.from(div.querySelectorAll('span.math-tex'));
   mathSpans.forEach(span => {
     const parent = span.parentNode;
-    if (parent) {
+    if (parent && parent.contains(span)) {
       while (span.firstChild) {
         parent.insertBefore(span.firstChild, span);
       }
@@ -292,6 +292,11 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
   const [error, setError] = useState(null);
 
   const inlineTitleInputRef = useRef(null);
+  const isEditingInlineTitleRef = useRef(false);
+  const inlineTitleValueRef = useRef('');
+  const isMouseDownInsideTitleRef = useRef(false);
+  const isMouseDownOutsideTitleRef = useRef(false);
+  const justFinishedSelectionRef = useRef(false);
   const marqueeTitleRef = useRef(null);
   const marqueeTitleContainerRef = useRef(null);
   const lastInitializedLessonId = useRef(null);
@@ -953,9 +958,19 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
             selector: '#editor-container',
             base_url: 'https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.3',
             suffix: '.min',
-            skin_url: 'https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.3/skins/ui/oxide',
+            plugins: 'preview importcss searchreplace autolink autosave save directionality code visualblocks visualchars fullscreen image link media template codesample table charmap pagebreak nonbreaking anchor insertdatetime advlist lists wordcount help quickbars emoticons',
+            menubar: 'file edit view insert format tools table help',
+            toolbar: 'fullscreen | undo redo | bold italic underline strikethrough | math | fontfamily fontsize blocks custom_lineheight | alignleft aligncenter alignright alignjustify | outdent indent | numlist bullist | forecolor backcolor removeformat | pagebreak | charmap emoticons | preview save print | insertfile image media template link anchor codesample | ltr rtl',
+            toolbar_mode: 'wrap',
+            font_size_formats: '8pt 9pt 10pt 11pt 12pt 13pt 14pt 15pt 16pt 17pt 18pt 20pt 22pt 24pt 26pt 28pt 32pt 36pt 40pt 48pt 60pt 72pt',
+            toolbar_sticky: false,
+            autosave_interval: '30s',
+            height: 600,
+            min_height: 350,
+            resize: true,
+            branding: false,
+            promotion: false,
             content_css: [
-              'https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.3/skins/content/default/content.min.css',
               'https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&family=Lora:ital,wght@0,400;0,700;1,400&family=Tinos:wght@400;700&family=Arimo:wght@400;700&display=swap'
             ],
           font_family_formats: 
@@ -979,9 +994,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
             'Verdana=verdana,geneva; ' +
             'Webdings=webdings; ' +
             'Wingdings=wingdings,zapf dingbats',
-          content_style: 'body { margin: 1.5rem; background-color: #ffffff; } @keyframes math-skeleton-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } } .math-tex:not(.is-rendered):not(:has(.katex)) { display: inline-block !important; vertical-align: -0.15em; width: 3.75rem; height: 1.15em; margin: 0 0.25rem; border-radius: 4px; background: linear-gradient(90deg, #e2e8f0 20%, #f1f5f9 40%, #e2e8f0 60%); background-size: 200% 100%; animation: math-skeleton-shimmer 1.5s ease-in-out infinite; color: transparent !important; } .math-tex.is-rendered { opacity: 1; visibility: visible; overflow: visible !important; display: inline-flex !important; align-items: baseline !important; vertical-align: baseline !important; height: fit-content !important; min-height: fit-content !important; padding: 0 0.12em !important; margin: 0 !important; line-height: inherit !important; font-size: inherit !important; } .math-tex.is-rendered::-webkit-scrollbar { width: 0; height: 0; background-color: rgba(0,0,0,0); } .katex-html { display: none !important; } .katex-mathml { display: inline-flex !important; align-items: baseline !important; vertical-align: baseline !important; position: static !important; clip: auto !important; width: auto !important; height: fit-content !important; min-height: fit-content !important; padding: 0 !important; margin: 0 !important; line-height: inherit !important; font-size: 1em !important; } .katex-mathml math { display: inline !important; overflow: visible !important; font-size: 1em !important; height: fit-content !important; line-height: inherit !important; padding: 0 !important; margin: 0 !important; } .katex-display { display: block !important; width: 100% !important; height: fit-content !important; margin: 0.5em 0 !important; padding: 0.25em 0 !important; overflow-x: auto !important; overflow-y: clip !important; scrollbar-width: none !important; -ms-overflow-style: none !important; } .katex-display::-webkit-scrollbar { width: 0; height: 0; background-color: rgba(0,0,0,0); } .katex { display: inline-flex !important; align-items: baseline !important; vertical-align: baseline !important; font-size: 1em !important; line-height: inherit !important; height: fit-content !important; padding: 0 !important; margin: 0 !important; overflow: visible !important; } #voice-interim { color: #94a3b8; background-color: #f1f5f9; padding: 0 2px; border-radius: 2px; }',
-          branding: false,
-          promotion: false,
+          content_style: 'body { font-family: "Be Vietnam Pro", sans-serif; margin: 1.5rem; background-color: #ffffff; } @keyframes math-skeleton-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } } .math-tex:not(.is-rendered):not(:has(.katex)) { display: inline-block !important; vertical-align: -0.15em; width: 3.75rem; height: 1.15em; margin: 0 0.25rem; border-radius: 4px; background: linear-gradient(90deg, #e2e8f0 20%, #f1f5f9 40%, #e2e8f0 60%); background-size: 200% 100%; animation: math-skeleton-shimmer 1.5s ease-in-out infinite; color: transparent !important; } .math-tex.is-rendered { opacity: 1; visibility: visible; overflow: visible !important; display: inline-flex !important; align-items: baseline !important; vertical-align: baseline !important; height: fit-content !important; min-height: fit-content !important; padding: 0 0.12em !important; margin: 0 !important; line-height: inherit !important; font-size: inherit !important; } .math-tex.is-rendered::-webkit-scrollbar { width: 0; height: 0; background-color: rgba(0,0,0,0); } .katex-html { display: none !important; } .katex-mathml { display: inline-flex !important; align-items: baseline !important; vertical-align: baseline !important; position: static !important; clip: auto !important; width: auto !important; height: fit-content !important; min-height: fit-content !important; padding: 0 !important; margin: 0 !important; line-height: inherit !important; font-size: 1em !important; } .katex-mathml math { display: inline !important; overflow: visible !important; font-size: 1em !important; height: fit-content !important; line-height: inherit !important; padding: 0 !important; margin: 0 !important; } .katex-display { display: block !important; width: 100% !important; height: fit-content !important; margin: 0.5em 0 !important; padding: 0.25em 0 !important; overflow-x: auto !important; overflow-y: clip !important; scrollbar-width: none !important; -ms-overflow-style: none !important; } .katex-display::-webkit-scrollbar { width: 0; height: 0; background-color: rgba(0,0,0,0); } .katex { display: inline-flex !important; align-items: baseline !important; vertical-align: baseline !important; font-size: 1em !important; line-height: inherit !important; height: fit-content !important; padding: 0 !important; margin: 0 !important; overflow: visible !important; } #voice-interim { color: #94a3b8; background-color: #f1f5f9; padding: 0 2px; border-radius: 2px; }',
           formats: {
             math_tex: { inline: 'span', classes: ['math-tex', 'not-prose'] },
             custom_lineheight: {
@@ -1582,20 +1595,83 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
   const handleEditTitle = (node) => { setModalMode('UPDATE'); setTargetType(node.type); setEditingNode(node); setIsModalOpen(true); };
   const toggleContentEditor = () => setIsEditingContent(true);
 
-  const startEditInlineTitle = () => {
-    if (mode !== 'edit' || isEditingContent) return;
-    setInlineTitleValue(currentNode?.title || '');
-    setIsEditingInlineTitle(true);
+  const handleTitleMouseDown = () => {
+    isMouseDownInsideTitleRef.current = true;
+    isMouseDownOutsideTitleRef.current = false;
+    if (mode === 'edit' && !isEditingContent) {
+      if (!isEditingInlineTitleRef.current) {
+        isEditingInlineTitleRef.current = true;
+        setIsEditingInlineTitle(true);
+        inlineTitleValueRef.current = currentNode?.title || '';
+        if (marqueeTitleRef.current) {
+          marqueeTitleRef.current.innerText = currentNode?.title || '';
+        }
+      }
+    }
+  };
+
+  const handleTitleInput = (e) => {
+    inlineTitleValueRef.current = e.currentTarget.innerText || '';
+  };
+
+  const handleTitleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSaveInlineTitle();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleCancelInlineTitle();
+    }
+  };
+
+  const handleTitlePaste = (e) => {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData)?.getData('text') || '';
+    document.execCommand('insertText', false, text);
+    if (marqueeTitleRef.current) {
+      inlineTitleValueRef.current = marqueeTitleRef.current.innerText || '';
+    }
+  };
+
+  const handleTitleBlur = () => {
+    // Nếu chuột đang được nhấn giữ từ trong h1 hoặc vừa mới thả chuột sau khi bôi đen:
+    // Tuyệt đối không lưu và không thoát để tránh mất nội dung khi người dùng kéo chuột ra ngoài
+    if (isMouseDownInsideTitleRef.current || justFinishedSelectionRef.current) {
+      return;
+    }
+    if (isEditingInlineTitleRef.current) {
+      handleSaveInlineTitle();
+    }
+  };
+
+  const handleCancelInlineTitle = () => {
+    isEditingInlineTitleRef.current = false;
+    setIsEditingInlineTitle(false);
+    if (marqueeTitleRef.current) {
+      marqueeTitleRef.current.innerText = currentNode?.title || '';
+      marqueeTitleRef.current.blur();
+    }
   };
 
   const handleSaveInlineTitle = async () => {
-    if (!isEditingInlineTitle) return;
-    const trimmed = (inlineTitleValue || '').trim();
+    if (!isEditingInlineTitleRef.current) return;
+    isEditingInlineTitleRef.current = false;
     setIsEditingInlineTitle(false);
+
+    if (marqueeTitleRef.current) {
+      marqueeTitleRef.current.blur();
+    }
+
+    const raw = marqueeTitleRef.current ? marqueeTitleRef.current.innerText : (inlineTitleValueRef.current || '');
+    const trimmed = (raw || '').replace(/\r?\n|\r/g, ' ').trim();
+
     if (!trimmed || trimmed === currentNode?.title) {
-      setInlineTitleValue(currentNode?.title || '');
+      if (marqueeTitleRef.current) {
+        marqueeTitleRef.current.innerText = currentNode?.title || '';
+      }
       return;
     }
+
     try {
       const updatedNode = { ...currentNode, title: trimmed };
       setAllNodes(prev => prev.map(n => n.id === updatedNode.id ? updatedNode : n));
@@ -1603,20 +1679,67 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
       await fetchData(true);
     } catch (e) {
       alert("Lỗi khi lưu tên bài!");
+      if (marqueeTitleRef.current) {
+        marqueeTitleRef.current.innerText = currentNode?.title || '';
+      }
     }
   };
 
   useEffect(() => {
-    setIsEditingInlineTitle(false);
-    setInlineTitleValue(currentNode?.title || '');
-  }, [currentNode?.id]);
+    const onDocMouseDown = (e) => {
+      const el = marqueeTitleRef.current;
+      if (el && !el.contains(e.target)) {
+        isMouseDownOutsideTitleRef.current = true;
+        isMouseDownInsideTitleRef.current = false;
+      } else {
+        isMouseDownOutsideTitleRef.current = false;
+        isMouseDownInsideTitleRef.current = true;
+      }
+    };
+
+    const onDocMouseUp = (e) => {
+      const el = marqueeTitleRef.current;
+      const clickedInside = el && el.contains(e.target);
+
+      if (isMouseDownInsideTitleRef.current) {
+        // Chuột nhấn từ trong h1 kéo ra ngoài thả chuột -> Thao tác bôi đen chọn chữ
+        justFinishedSelectionRef.current = true;
+        setTimeout(() => {
+          justFinishedSelectionRef.current = false;
+        }, 300);
+        isMouseDownInsideTitleRef.current = false;
+        isMouseDownOutsideTitleRef.current = false;
+        return;
+      }
+
+      // Chỉ khi người dùng thực sự nhấn chuột bên ngoài và thả chuột cũng ở bên ngoài
+      if (isMouseDownOutsideTitleRef.current && !clickedInside) {
+        if (isEditingInlineTitleRef.current) {
+          handleSaveInlineTitle();
+        }
+      }
+
+      isMouseDownInsideTitleRef.current = false;
+      isMouseDownOutsideTitleRef.current = false;
+    };
+
+    document.addEventListener('mousedown', onDocMouseDown, true);
+    document.addEventListener('mouseup', onDocMouseUp, true);
+
+    return () => {
+      document.removeEventListener('mousedown', onDocMouseDown, true);
+      document.removeEventListener('mouseup', onDocMouseUp, true);
+    };
+  }, [currentNode?.title, currentNode?.id]);
 
   useEffect(() => {
-    if (isEditingInlineTitle && inlineTitleInputRef.current) {
-      inlineTitleInputRef.current.focus();
-      inlineTitleInputRef.current.select();
+    isEditingInlineTitleRef.current = false;
+    setIsEditingInlineTitle(false);
+    inlineTitleValueRef.current = currentNode?.title || '';
+    if (marqueeTitleRef.current) {
+      marqueeTitleRef.current.innerText = currentNode?.title || '';
     }
-  }, [isEditingInlineTitle]);
+  }, [currentNode?.id]);
 
   const displayLessonContent = useMemo(() => {
     if (!currentNode?.content) return '';
@@ -1977,58 +2100,37 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
                 </div>
 
                 <div key="title-box-wrapper" className="w-full">
-                  ${(mode === 'edit' && isEditingInlineTitle) ? html`
-                    <textarea
-                      ref=${inlineTitleInputRef}
-                      rows="1"
-                      value=${inlineTitleValue}
-                      onInput=${(e) => {
-                        setInlineTitleValue(e.target.value);
-                        e.target.style.height = 'auto';
-                        e.target.style.height = `${e.target.scrollHeight}px`;
-                      }}
-                      onKeyDown=${(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleSaveInlineTitle();
-                        } else if (e.key === 'Escape') {
-                          e.preventDefault();
-                          setIsEditingInlineTitle(false);
-                          setInlineTitleValue(currentNode?.title || '');
-                        }
-                      }}
-                      onBlur=${handleSaveInlineTitle}
-                      className=${`w-full font-serif font-bold text-slate-900 leading-tight ${isAppMode ? 'text-2xl md:text-3xl' : 'text-2xl md:text-4xl'} bg-slate-50/90 border-2 border-indigo-500 rounded-xl px-3 py-1.5 outline-none resize-none shadow-sm transition-all`}
-                    />
-                  ` : html`
-                    <div 
-                      key="title-box" 
-                      className=${`w-full relative flex items-center ${mode === 'edit' && !isEditingContent ? 'cursor-pointer group' : ''}`}
-                      onClick=${startEditInlineTitle}
-                      title=${mode === 'edit' && !isEditingContent ? 'Bấm vào để sửa tên bài' : undefined}
+                  <div 
+                    key="title-box" 
+                    className=${`w-full relative flex items-center ${mode === 'edit' && !isEditingContent ? 'cursor-pointer group' : ''}`}
+                    onClick=${() => {
+                      if (mode === 'edit' && !isEditingContent) {
+                        handleEditTitle(currentNode);
+                      }
+                    }}
+                    title=${mode === 'edit' && !isEditingContent ? 'Bấm vào để sửa tên bài' : undefined}
+                  >
+                    <h1 
+                      ref=${marqueeTitleRef}
+                      className=${`w-full font-serif font-bold text-slate-900 leading-tight drop-shadow-sm whitespace-normal break-words ${isAppMode ? 'text-2xl md:text-3xl' : (isMultiLine ? 'text-xl md:text-3xl' : 'text-2xl md:text-4xl')} ${mode === 'edit' && !isEditingContent ? 'group-hover:text-indigo-700 transition-colors' : ''}`}
+                      style=${hasMath && !isMathRendered ? selectNoneStyle : {}}
                     >
-                      <h1 
-                        ref=${marqueeTitleRef}
-                        className=${`w-full font-serif font-bold text-slate-900 leading-tight drop-shadow-sm whitespace-normal break-words ${isAppMode ? 'text-2xl md:text-3xl' : (isMultiLine ? 'text-xl md:text-3xl' : 'text-2xl md:text-4xl')} ${mode === 'edit' && !isEditingContent ? 'group-hover:text-indigo-700 transition-colors' : ''}`}
-                        style=${selectNoneStyle}
-                      >
-                        ${hasMath && !isMathRendered ? html`
-                          <span 
-                            className="inline rounded-xl bg-slate-200/85 text-transparent select-none animate-pulse box-decoration-clone px-1 py-0.5"
-                            style=${{
-                              WebkitBoxDecorationBreak: 'clone',
-                              boxDecorationBreak: 'clone',
-                              userSelect: 'none',
-                              color: 'transparent',
-                              textShadow: 'none'
-                            }}
-                          >
-                            ${currentNode.title}
-                          </span>
-                        ` : (currentNode.title)}
-                      </h1>
-                    </div>
-                  `}
+                      ${hasMath && !isMathRendered ? html`
+                        <span 
+                          className="inline rounded-xl bg-slate-200/85 text-transparent select-none animate-pulse box-decoration-clone px-1 py-0.5"
+                          style=${{
+                            WebkitBoxDecorationBreak: 'clone',
+                            boxDecorationBreak: 'clone',
+                            userSelect: 'none',
+                            color: 'transparent',
+                            textShadow: 'none'
+                          }}
+                        >
+                          ${currentNode?.title || ''}
+                        </span>
+                      ` : (currentNode?.title || '')}
+                    </h1>
+                  </div>
                 </div>
               </div>
               
