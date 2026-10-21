@@ -216,7 +216,7 @@ export const generateLessonSkeletonHtml = (rawHtml) => {
   }
 };
 
-export const Explorer = ({ mode, isAppMode, uiConfig, onInitialRenderComplete }) => {
+export const Explorer = ({ mode, isAppMode, uiConfig }) => {
   const { nodeId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -409,8 +409,6 @@ export const Explorer = ({ mode, isAppMode, uiConfig, onInitialRenderComplete })
     const isUserEditing = isEditingContent || isModalOpen || isPasswordModalOpen || isSorting || saving;
     if (isBackground && isUserEditing) return;
     if (isFetchingRef.current) return;
-    const shouldDelay = isAppMode && nodeId && !isBackground;
-    const startTime = Date.now();
     
     const hasCache = Array.isArray(allNodes) && allNodes.length > 0;
     const isSilentlyFetching = isBackground || hasCache;
@@ -467,11 +465,6 @@ export const Explorer = ({ mode, isAppMode, uiConfig, onInitialRenderComplete })
       isFetchingRef.current = false;
       setSyncing(false);
       if (!isSilentlyFetching) {
-        if (shouldDelay) {
-            const elapsed = Date.now() - startTime;
-            const MIN_LOAD_TIME = 1000;
-            if (elapsed < MIN_LOAD_TIME) await new Promise(resolve => setTimeout(resolve, MIN_LOAD_TIME - elapsed));
-        }
         setLoading(false);
       }
     }
@@ -523,18 +516,6 @@ export const Explorer = ({ mode, isAppMode, uiConfig, onInitialRenderComplete })
       }
     }
   }, [loading, currentNode?.type, hasMath]);
-
-  // Thông báo render hoàn tất 100% cho InitialLoadingScreen khi load lần đầu
-  const initialRenderNotifiedRef = useRef(false);
-  useEffect(() => {
-    if (initialRenderNotifiedRef.current) return;
-    if (!loading && (currentNode?.type !== NodeType.LESSON || isMathRendered)) {
-      initialRenderNotifiedRef.current = true;
-      if (onInitialRenderComplete) {
-        onInitialRenderComplete();
-      }
-    }
-  }, [loading, currentNode?.type, isMathRendered, onInitialRenderComplete]);
 
   useEffect(() => {
     if (isEditingContent) return;

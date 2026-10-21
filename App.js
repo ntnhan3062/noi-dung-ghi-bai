@@ -17,7 +17,6 @@ import { ErrorBoundary } from './components/ErrorBoundary.js';
 import { LayoutErrorProvider, useLayoutError } from './context/LayoutErrorContext.js';
 import { LoadingProgressProvider } from './context/LoadingProgressContext.js';
 import { HeaderLogoProgressRing } from './components/HeaderLogoProgressRing.js';
-import { InitialLoadingScreen } from './components/InitialLoadingScreen.js';
 
 // Biến lưu nhánh URL cố định cho GitHub Pages
 export const GITHUB_BASE_URL = 'https://ntnhan3062.github.io/noi-dung-ghi-bai/';
@@ -40,7 +39,7 @@ const getBasename = () => {
   return '';
 };
 
-const AnimatedRoutes = ({ isAppMode, uiConfig, onInitialRenderComplete }) => {
+const AnimatedRoutes = ({ isAppMode, uiConfig }) => {
     const location = useLocation();
     const navigate = useNavigate();
     const prevHistoryIdx = useRef(typeof window !== 'undefined' ? (window.history.state?.idx ?? 0) : 0);
@@ -85,14 +84,14 @@ const AnimatedRoutes = ({ isAppMode, uiConfig, onInitialRenderComplete }) => {
             <${Routes}>
                 <${Route} key="route-home" path="/" element=${html`<${Navigate} to="/view" replace />`} />
                 <${Route} key="route-index" index element=${html`<${Navigate} to="/view" replace />`} />
-                <${Route} key="route-view" path="/view" element=${html`<${Explorer} mode="view" isAppMode=${isAppMode} uiConfig=${uiConfig} onInitialRenderComplete=${onInitialRenderComplete} />`} />
-                <${Route} key="route-view-node" path="/view/:nodeId" element=${html`<${Explorer} mode="view" isAppMode=${isAppMode} uiConfig=${uiConfig} onInitialRenderComplete=${onInitialRenderComplete} />`} />
+                <${Route} key="route-view" path="/view" element=${html`<${Explorer} mode="view" isAppMode=${isAppMode} uiConfig=${uiConfig} />`} />
+                <${Route} key="route-view-node" path="/view/:nodeId" element=${html`<${Explorer} mode="view" isAppMode=${isAppMode} uiConfig=${uiConfig} />`} />
                 ${!isAppMode && html`
                     <${React.Fragment}>
-                        <${Route} key="route-edit" path="/edit" element=${html`<${AuthGuard}><${Explorer} mode="edit" uiConfig=${uiConfig} onInitialRenderComplete=${onInitialRenderComplete} /></${AuthGuard}>`} />
+                        <${Route} key="route-edit" path="/edit" element=${html`<${AuthGuard}><${Explorer} mode="edit" uiConfig=${uiConfig} /></${AuthGuard}>`} />
                         <${Route} key="route-settings" path="/edit/settings" element=${html`<${AuthGuard}><${SettingsPage} /></${AuthGuard}>`} />
                         <${Route} key="route-classes" path="/edit/classes" element=${html`<${AuthGuard}><${ClassManagementPage} /></${AuthGuard}>`} />
-                        <${Route} key="route-edit-node" path="/edit/:nodeId" element=${html`<${AuthGuard}><${Explorer} mode="edit" uiConfig=${uiConfig} onInitialRenderComplete=${onInitialRenderComplete} /></${AuthGuard}>`} />
+                        <${Route} key="route-edit-node" path="/edit/:nodeId" element=${html`<${AuthGuard}><${Explorer} mode="edit" uiConfig=${uiConfig} /></${AuthGuard}>`} />
                     </${React.Fragment}>
                 `}
                 <${Route} key="route-catch-all" path="*" element=${html`<${StatusPage} type="not-found" />`} />
@@ -101,7 +100,7 @@ const AnimatedRoutes = ({ isAppMode, uiConfig, onInitialRenderComplete }) => {
     `;
 };
 
-const Layout = ({ children, isAppMode, uiConfig, currentBg, isOnline, isInitialLoading }) => {
+const Layout = ({ children, isAppMode, uiConfig, currentBg, isOnline }) => {
   const { layoutError } = useLayoutError();
   const location = useLocation();
   const navigate = useNavigate();
@@ -337,13 +336,7 @@ const App = () => {
   const [isAuthorized, setIsAuthorized] = useState(true);
   const isAppMode = window.location.pathname.includes('/special-application');
   const [isOnline, setIsOnline] = useState(true);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [isExplorerRenderReady, setIsExplorerRenderReady] = useState(false);
   const [isDataReady, setIsDataReady] = useState(false);
-
-  const handleInitialRenderComplete = useCallback(() => {
-    setIsExplorerRenderReady(true);
-  }, []);
   const [uiConfig, setUiConfig] = useState(() => {
     let localBackButton = { enabled: true, view: true, edit: true, app: true };
     try {
@@ -415,13 +408,6 @@ const App = () => {
     }
     setIsDataReady(true);
   }, []);
-
-  const handleBootstrapData = useCallback((payload) => {
-    if (!payload) return;
-    if (payload.fullConfig) {
-      applyConfig(payload.fullConfig, payload.currentBg);
-    }
-  }, [applyConfig]);
 
   const initConfig = useCallback(async () => {
       let fullConfig = null;
@@ -558,18 +544,9 @@ const App = () => {
           <${BrowserRouter} basename=${getBasename()}>
             <${ClassProvider}>
               <${BreadcrumbProvider}>
-                <${Layout} isAppMode=${isAppMode} uiConfig=${uiConfig} currentBg=${currentBg} isOnline=${isOnline} isInitialLoading=${isInitialLoading}>
-                   <${AnimatedRoutes} isAppMode=${isAppMode} uiConfig=${uiConfig} onInitialRenderComplete=${handleInitialRenderComplete} />
+                <${Layout} isAppMode=${isAppMode} uiConfig=${uiConfig} currentBg=${currentBg} isOnline=${isOnline}>
+                   <${AnimatedRoutes} isAppMode=${isAppMode} uiConfig=${uiConfig} />
                 </${Layout}>
-                ${isInitialLoading && html`
-                  <${InitialLoadingScreen} 
-                    onBootstrapData=${handleBootstrapData}
-                    isContentReady=${isExplorerRenderReady}
-                    isLiquid=${uiConfig.style === 'liquid'}
-                    isAppMode=${isAppMode}
-                    onComplete=${() => setIsInitialLoading(false)}
-                  />
-                `}
               </${BreadcrumbProvider}>
             </${ClassProvider}>
           </${BrowserRouter}>
