@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo, useRef, useLayoutEffect } from 'react';
 import { html } from '../utils/html.js';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Plus, Minus, ArrowLeft, LayoutGrid, List as ListIcon, Loader2, Save, X, KeyRound, CornerDownRight, ClipboardList, ArrowUpDown, LogOut, Mic, MicOff, Globe, Wand2, Settings, FolderInput, Folder, FileText } from 'lucide-react';
+import { Plus, Minus, ArrowLeft, LayoutGrid, List as ListIcon, Loader2, Save, X, KeyRound, CornerDownRight, ClipboardList, ArrowUpDown, LogOut, Mic, MicOff, Globe, Wand2, Settings, FolderInput, Folder, FileText, ShieldAlert } from 'lucide-react';
 import { apiService } from '../services/apiService.js';
 import { NodeType, ALLOWED_CHILDREN, NODE_LABELS } from '../types.js';
 import { NodeItem } from '../components/NodeItem.js';
@@ -274,6 +274,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
   const [targetType, setTargetType] = useState(NodeType.SUBJECT);
   const [isEditingContent, setIsEditingContent] = useState(false);
   const [editorReady, setEditorReady] = useState(false);
+  const [editorLoadError, setEditorLoadError] = useState(false);
   const [autoFormat, setAutoFormat] = useState(true);
   const [isListening, setIsListening] = useState(false);
   const [voiceLang, setVoiceLang] = useState('vi-VN');
@@ -890,27 +891,73 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     }
   }, [isSorting, nodeId]);
 
-  useEffect(() => {
-    if (isEditingContent) {
-      const initTinyMCE = () => {
-        if (window.tinymce && window.tinymce.get('editor-container')) {
-           tempContentRef.current = window.tinymce.get('editor-container').getContent();
-           window.tinymce.get('editor-container').remove();
+  const ensureTinyMCE = () => {
+    if (typeof window === 'undefined') return Promise.resolve(null);
+    if (window.tinymce) {
+      window.tinymce.baseURL = window.tinymce.baseURL || 'https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.3';
+      return Promise.resolve(window.tinymce);
+    }
+
+    const loadScript = (url) => new Promise((resolve, reject) => {
+      const existing = document.querySelector(`script[src="${url}"]`);
+      if (existing) {
+        if (window.tinymce) return resolve(window.tinymce);
+        existing.addEventListener('load', () => resolve(window.tinymce));
+        existing.addEventListener('error', reject);
+        return;
+      }
+      const s = document.createElement('script');
+      s.src = url;
+      s.referrerPolicy = 'origin';
+      s.async = true;
+      s.onload = () => resolve(window.tinymce);
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+
+    return loadScript('https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.3/tinymce.min.js')
+      .catch((err) => {
+        console.warn('cdnjs TinyMCE load failed, falling back to jsdelivr:', err);
+        return loadScript('https://cdn.jsdelivr.net/npm/tinymce@6.8.3/tinymce.min.js');
+      })
+      .then(() => {
+        if (window.tinymce) {
+          window.tinymce.baseURL = 'https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.3';
         }
-        window.tinymce.init({
-          selector: '#editor-container',
-          plugins: 'preview importcss searchreplace autolink autosave save directionality code visualblocks visualchars fullscreen image link media template codesample table charmap pagebreak nonbreaking anchor insertdatetime advlist lists wordcount help charmap quickbars emoticons',
-          menubar: 'file edit view insert format tools table help',
-          toolbar: 'fullscreen | undo redo | bold italic underline strikethrough | math | fontfamily fontsize blocks custom_lineheight | alignleft aligncenter alignright alignjustify | outdent indent | numlist bullist | forecolor backcolor removeformat | pagebreak | charmap emoticons | preview save print | insertfile image media template link anchor codesample | ltr rtl',
-          font_size_formats: '8pt 9pt 10pt 11pt 12pt 13pt 14pt 15pt 16pt 17pt 18pt 20pt 22pt 24pt 26pt 28pt 32pt 36pt 40pt 48pt 60pt 72pt',
-          toolbar_sticky: false,
-          autosave_interval: '30s',
-          height: 600, 
-          min_height: 350,
-          resize: true,
-          content_css: [
-            'https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&family=Lora:ital,wght@0,400;0,700;1,400&family=Tinos:wght@400;700&family=Arimo:wght@400;700&display=swap'
-          ],
+        return window.tinymce;
+      });
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+    if (isEditingContent) {
+      setEditorReady(false);
+      setEditorLoadError(false);
+
+      const initTinyMCE = async () => {
+        try {
+          const tinymce = await ensureTinyMCE();
+          if (!isMounted) return;
+          if (!tinymce) {
+            setEditorLoadError(true);
+            return;
+          }
+
+          if (tinymce.get('editor-container')) {
+             tempContentRef.current = tinymce.get('editor-container').getContent();
+             tinymce.get('editor-container').remove();
+          }
+          if (!isMounted) return;
+
+          tinymce.init({
+            selector: '#editor-container',
+            base_url: 'https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.3',
+            suffix: '.min',
+            skin_url: 'https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.3/skins/ui/oxide',
+            content_css: [
+              'https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.3/skins/content/default/content.min.css',
+              'https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&family=Lora:ital,wght@0,400;0,700;1,400&family=Tinos:wght@400;700&family=Arimo:wght@400;700&display=swap'
+            ],
           font_family_formats: 
             'Be Vietnam Pro=Be Vietnam Pro, sans-serif; ' +
             'Arimo (Arial)=Arimo, Arial, helvetica, sans-serif; ' +
@@ -1176,9 +1223,11 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
             });
 
             editor.on('init', () => {
+              if (!isMounted) return;
               const contentToLoad = tempContentRef.current !== null ? tempContentRef.current : (currentNode && currentNode.content);
               if (contentToLoad) editor.setContent(contentToLoad);
               setEditorReady(true);
+              setEditorLoadError(false);
               tempContentRef.current = null;
 
               // Chặn zoom trình duyệt trong iframe TinyMCE
@@ -1323,15 +1372,23 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
             editor.on('change keyup', () => { tempContentRef.current = editor.getContent(); });
           }
         });
+        } catch (err) {
+          console.error("Lỗi khi tải hoặc khởi tạo TinyMCE:", err);
+          if (isMounted) {
+            setEditorLoadError(true);
+          }
+        }
       };
-      setTimeout(initTinyMCE, 100);
+      initTinyMCE();
     } else {
       document.body.classList.remove('tinymce-resizing-active');
       if (window.tinymce && window.tinymce.get('editor-container')) window.tinymce.get('editor-container').remove();
       setEditorReady(false);
+      setEditorLoadError(false);
       tempContentRef.current = null;
     }
     return () => {
+      isMounted = false;
       document.body.classList.remove('tinymce-resizing-active');
       shouldListenRef.current = false;
       if (window.tinymce && window.tinymce.get('editor-container')) {
@@ -1977,7 +2034,36 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
               
               <div className=${`relative flex flex-col ${isEditingContent ? 'min-h-[350px]' : 'flex-1 h-full'}`}>
                 ${isEditingContent ? html`
-                  <div id="editor-outer-wrapper" className="bg-white/80 select-text flex flex-col min-h-[350px] h-[600px] w-full">
+                  <div id="editor-outer-wrapper" className="bg-white/80 select-text flex flex-col min-h-[350px] h-[600px] w-full relative">
+                    ${!editorReady && html`
+                      <div key="editor-loading-overlay" className="absolute inset-0 z-20 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center gap-3.5 rounded-2xl transition-all duration-300">
+                        ${editorLoadError ? html`
+                          <div className="flex flex-col items-center gap-3 px-4 text-center">
+                            <div className="p-3 bg-red-100 rounded-full text-red-600">
+                              <${ShieldAlert} size=${28} />
+                            </div>
+                            <p className="text-slate-800 font-bold text-sm">Không thể tải trình soạn thảo</p>
+                            <p className="text-slate-500 text-xs max-w-xs">Vui lòng kiểm tra kết nối mạng và thử lại.</p>
+                            <button 
+                              onClick=${() => { setEditorLoadError(false); setEditorReady(false); setIsEditingContent(false); setTimeout(() => setIsEditingContent(true), 50); }}
+                              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition-all active:scale-95"
+                            >
+                              Thử lại
+                            </button>
+                          </div>
+                        ` : html`
+                          <div className="flex flex-col items-center gap-3.5">
+                            <div className="relative flex items-center justify-center">
+                              <div className="w-10 h-10 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
+                              <${Loader2} className="w-5 h-5 text-indigo-600 animate-spin absolute" />
+                            </div>
+                            <span className="text-slate-700 font-bold text-sm tracking-wide animate-pulse">
+                              Đang tải trình soạn thảo...
+                            </span>
+                          </div>
+                        `}
+                      </div>
+                    `}
                     <textarea id="editor-container" className="w-full h-full flex-1 min-h-[350px]"></textarea>
                   </div>
                 ` : html`

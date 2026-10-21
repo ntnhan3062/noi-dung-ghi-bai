@@ -576,7 +576,19 @@
         };
         document.head.appendChild(ktJs);
 
-        // 3. GET index.js theo đúng quy tắc Base URL + index.js
+        // 3. Tải trước TinyMCE bất đồng bộ để sẵn sàng ngay khi người dùng bấm Soạn thảo
+        var tmScript = document.createElement('script');
+        tmScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.3/tinymce.min.js';
+        tmScript.referrerPolicy = 'origin';
+        tmScript.async = true;
+        tmScript.onload = function() {
+          if (window.tinymce) {
+            window.tinymce.baseURL = 'https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.3';
+          }
+        };
+        document.head.appendChild(tmScript);
+
+        // 4. GET index.js theo đúng quy tắc Base URL + index.js
         var isGithub = window.location.hostname.indexOf('github.io') !== -1;
         var baseUrl = isGithub ? window.GITHUB_PAGES_BASE : (window.location.origin + '/');
         if (!baseUrl.endsWith('/')) baseUrl += '/';
