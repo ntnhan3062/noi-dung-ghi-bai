@@ -617,11 +617,15 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
           });
           const mathMLParts = contentElement.querySelectorAll('.katex-mathml');
           mathMLParts.forEach(el => {
-            el.style.setProperty('display', 'inline-block', 'important');
+            el.style.setProperty('display', 'inline-flex', 'important');
             el.style.setProperty('position', 'static', 'important');
             el.style.setProperty('clip', 'auto', 'important');
             el.style.setProperty('width', 'auto', 'important');
-            el.style.setProperty('height', 'auto', 'important');
+            el.style.setProperty('height', 'fit-content', 'important');
+            el.style.setProperty('padding', '0', 'important');
+            el.style.setProperty('margin', '0', 'important');
+            el.style.setProperty('line-height', 'inherit', 'important');
+            el.style.setProperty('vertical-align', 'baseline', 'important');
             el.style.setProperty('overflow', 'visible', 'important');
           });
 
@@ -631,6 +635,16 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
             el.classList.add('is-rendered');
             el.style.setProperty('opacity', '1', 'important');
             el.style.setProperty('visibility', 'visible', 'important');
+            el.style.setProperty('height', 'fit-content', 'important');
+            if (el.classList.contains('math-display')) {
+              el.style.setProperty('margin', '0.5em 0', 'important');
+              el.style.setProperty('padding', '0.25em 0', 'important');
+            } else {
+              el.style.setProperty('padding', '0 0.12em', 'important');
+              el.style.setProperty('margin', '0', 'important');
+              el.style.setProperty('vertical-align', 'baseline', 'important');
+              el.style.setProperty('line-height', 'inherit', 'important');
+            }
           });
 
           markRenderComplete();
@@ -918,7 +932,7 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
             'Verdana=verdana,geneva; ' +
             'Webdings=webdings; ' +
             'Wingdings=wingdings,zapf dingbats',
-          content_style: 'body { margin: 1.5rem; background-color: #ffffff; } @keyframes math-skeleton-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } } .math-tex:not(.is-rendered):not(:has(.katex)) { display: inline-block !important; vertical-align: -0.15em; width: 3.75rem; height: 1.15em; margin: 0 0.25rem; border-radius: 4px; background: linear-gradient(90deg, #e2e8f0 20%, #f1f5f9 40%, #e2e8f0 60%); background-size: 200% 100%; animation: math-skeleton-shimmer 1.5s ease-in-out infinite; color: transparent !important; } .math-tex.is-rendered { opacity: 1; visibility: visible; overflow: visible !important; padding: 0.35em 0.15em !important; line-height: normal !important; font-size: inherit !important; } .math-tex.is-rendered::-webkit-scrollbar { width: 0; height: 0; background-color: rgba(0,0,0,0); } .katex-html { display: none !important; } .katex-mathml { display: inline-block !important; padding: 0.25em 0 !important; line-height: normal !important; vertical-align: middle !important; font-size: 1em !important; } .katex-mathml math { overflow: visible !important; font-size: 1em !important; } .katex-display { display: block !important; width: 100% !important; padding: 0.75em 0.5em !important; overflow-x: auto !important; overflow-y: clip !important; scrollbar-width: none !important; -ms-overflow-style: none !important; } .katex-display::-webkit-scrollbar { width: 0; height: 0; background-color: rgba(0,0,0,0); } .katex { font-size: 1em !important; line-height: normal !important; overflow: visible !important; } #voice-interim { color: #94a3b8; background-color: #f1f5f9; padding: 0 2px; border-radius: 2px; }',
+          content_style: 'body { margin: 1.5rem; background-color: #ffffff; } @keyframes math-skeleton-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } } .math-tex:not(.is-rendered):not(:has(.katex)) { display: inline-block !important; vertical-align: -0.15em; width: 3.75rem; height: 1.15em; margin: 0 0.25rem; border-radius: 4px; background: linear-gradient(90deg, #e2e8f0 20%, #f1f5f9 40%, #e2e8f0 60%); background-size: 200% 100%; animation: math-skeleton-shimmer 1.5s ease-in-out infinite; color: transparent !important; } .math-tex.is-rendered { opacity: 1; visibility: visible; overflow: visible !important; display: inline-flex !important; align-items: baseline !important; vertical-align: baseline !important; height: fit-content !important; min-height: fit-content !important; padding: 0 0.12em !important; margin: 0 !important; line-height: inherit !important; font-size: inherit !important; } .math-tex.is-rendered::-webkit-scrollbar { width: 0; height: 0; background-color: rgba(0,0,0,0); } .katex-html { display: none !important; } .katex-mathml { display: inline-flex !important; align-items: baseline !important; vertical-align: baseline !important; position: static !important; clip: auto !important; width: auto !important; height: fit-content !important; min-height: fit-content !important; padding: 0 !important; margin: 0 !important; line-height: inherit !important; font-size: 1em !important; } .katex-mathml math { display: inline !important; overflow: visible !important; font-size: 1em !important; height: fit-content !important; line-height: inherit !important; padding: 0 !important; margin: 0 !important; } .katex-display { display: block !important; width: 100% !important; height: fit-content !important; margin: 0.5em 0 !important; padding: 0.25em 0 !important; overflow-x: auto !important; overflow-y: clip !important; scrollbar-width: none !important; -ms-overflow-style: none !important; } .katex-display::-webkit-scrollbar { width: 0; height: 0; background-color: rgba(0,0,0,0); } .katex { display: inline-flex !important; align-items: baseline !important; vertical-align: baseline !important; font-size: 1em !important; line-height: inherit !important; height: fit-content !important; padding: 0 !important; margin: 0 !important; overflow: visible !important; } #voice-interim { color: #94a3b8; background-color: #f1f5f9; padding: 0 2px; border-radius: 2px; }',
           branding: false,
           promotion: false,
           formats: {
@@ -957,11 +971,15 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
                 el.style.setProperty('display', 'none', 'important');
               });
               body.querySelectorAll('.katex-mathml').forEach(el => {
-                el.style.setProperty('display', 'inline-block', 'important');
+                el.style.setProperty('display', 'inline-flex', 'important');
                 el.style.setProperty('position', 'static', 'important');
                 el.style.setProperty('clip', 'auto', 'important');
                 el.style.setProperty('width', 'auto', 'important');
-                el.style.setProperty('height', 'auto', 'important');
+                el.style.setProperty('height', 'fit-content', 'important');
+                el.style.setProperty('padding', '0', 'important');
+                el.style.setProperty('margin', '0', 'important');
+                el.style.setProperty('line-height', 'inherit', 'important');
+                el.style.setProperty('vertical-align', 'baseline', 'important');
                 el.style.setProperty('overflow', 'visible', 'important');
               });
               
@@ -970,6 +988,11 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
                 el.classList.add('is-rendered');
                 el.style.setProperty('opacity', '1', 'important');
                 el.style.setProperty('visibility', 'visible', 'important');
+                el.style.setProperty('height', 'fit-content', 'important');
+                el.style.setProperty('padding', '0 0.12em', 'important');
+                el.style.setProperty('margin', '0', 'important');
+                el.style.setProperty('vertical-align', 'baseline', 'important');
+                el.style.setProperty('line-height', 'inherit', 'important');
               });
             };
 

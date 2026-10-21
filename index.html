@@ -243,36 +243,40 @@
       .is-rendered .math-tex,
       .math-tex:has(.katex) {
         display: inline-flex !important;
+        align-items: baseline !important;
         position: static !important;
         opacity: 1 !important;
         visibility: visible !important;
         color: inherit !important;
         font-size: inherit !important;
-        line-height: normal !important;
+        line-height: inherit !important;
         background: transparent !important;
         box-shadow: none !important;
         animation: none !important;
         user-select: text !important;
         pointer-events: auto !important;
         width: auto !important;
-        height: auto !important;
+        height: fit-content !important;
+        min-height: fit-content !important;
         max-width: 100% !important;
         overflow: visible !important;
         transition: opacity 0.25s ease-out !important;
       }
 
       .math-tex.math-inline.is-rendered,
-      .math-tex.math-inline:has(.katex) {
-        display: inline-block !important;
-        vertical-align: middle !important;
+      .math-tex.math-inline:has(.katex),
+      .math-tex:not(.math-display).is-rendered {
+        display: inline-flex !important;
+        align-items: baseline !important;
+        vertical-align: baseline !important;
         width: auto !important;
-        height: auto !important;
+        height: fit-content !important;
+        min-height: fit-content !important;
         max-width: 100% !important;
-        margin: 0 0.15em !important;
-        padding: 0.35em 0.15em !important;
+        margin: 0 0.12em !important;
+        padding: 0 !important;
+        line-height: inherit !important;
         overflow: visible !important;
-        overflow-x: visible !important;
-        overflow-y: visible !important;
         scrollbar-width: none !important;
         -ms-overflow-style: none !important;
       }
@@ -281,9 +285,9 @@
       .math-tex.math-display:has(.katex) {
         display: block !important;
         width: 100% !important;
-        height: auto !important;
-        margin: 1.5em 0 !important;
-        padding: 0.75em 0.5em !important;
+        height: fit-content !important;
+        margin: 0.5em 0 !important;
+        padding: 0.25em 0 !important;
         text-align: center !important;
         overflow-x: auto !important;
         overflow-y: clip !important;
@@ -310,29 +314,37 @@
       }
       
       .katex-mathml {
-        display: inline-block !important;
+        display: inline-flex !important;
+        align-items: baseline !important;
         position: static !important;
         clip: auto !important;
         width: auto !important;
-        height: auto !important;
+        height: fit-content !important;
         overflow: visible !important;
         white-space: normal !important;
-        padding: 0.25em 0 !important;
-        line-height: normal !important;
-        vertical-align: middle !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        line-height: inherit !important;
+        vertical-align: baseline !important;
         font-size: 1em !important;
       }
 
       .katex-mathml math {
+        display: inline !important;
         overflow: visible !important;
         font-size: 1em !important;
+        line-height: inherit !important;
+        height: fit-content !important;
+        padding: 0 !important;
+        margin: 0 !important;
       }
 
       .katex-display {
         display: block !important;
-        margin: 1.5em 0 !important;
-        padding: 0.75em 0.5em !important;
+        margin: 0.5em 0 !important;
+        padding: 0.25em 0 !important;
         width: 100% !important;
+        height: fit-content !important;
         text-align: center !important;
         overflow-x: auto !important;
         overflow-y: clip !important;
@@ -348,8 +360,14 @@
       }
       
       .katex {
+        display: inline-flex !important;
+        align-items: baseline !important;
         font-size: 1em !important;
-        line-height: normal !important;
+        line-height: inherit !important;
+        height: fit-content !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        vertical-align: baseline !important;
         text-indent: 0 !important;
         overflow: visible !important;
       }
