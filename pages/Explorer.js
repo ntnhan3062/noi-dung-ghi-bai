@@ -1736,9 +1736,6 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
     isEditingInlineTitleRef.current = false;
     setIsEditingInlineTitle(false);
     inlineTitleValueRef.current = currentNode?.title || '';
-    if (marqueeTitleRef.current) {
-      marqueeTitleRef.current.innerText = currentNode?.title || '';
-    }
   }, [currentNode?.id]);
 
   const displayLessonContent = useMemo(() => {
@@ -2112,23 +2109,16 @@ export const Explorer = ({ mode, isAppMode, uiConfig }) => {
                   >
                     <h1 
                       ref=${marqueeTitleRef}
-                      className=${`w-full font-serif font-bold text-slate-900 leading-tight drop-shadow-sm whitespace-normal break-words ${isAppMode ? 'text-2xl md:text-3xl' : (isMultiLine ? 'text-xl md:text-3xl' : 'text-2xl md:text-4xl')} ${mode === 'edit' && !isEditingContent ? 'group-hover:text-indigo-700 transition-colors' : ''}`}
-                      style=${hasMath && !isMathRendered ? selectNoneStyle : {}}
+                      className=${`w-full font-serif font-bold leading-tight drop-shadow-sm whitespace-normal break-words ${isAppMode ? 'text-2xl md:text-3xl' : (isMultiLine ? 'text-xl md:text-3xl' : 'text-2xl md:text-4xl')} ${mode === 'edit' && !isEditingContent ? 'group-hover:text-indigo-700 transition-colors' : ''} ${hasMath && !isMathRendered ? 'bg-slate-200/85 text-transparent rounded-xl select-none animate-pulse box-decoration-clone px-1 py-0.5' : 'text-slate-900'}`}
+                      style=${hasMath && !isMathRendered ? {
+                        ...selectNoneStyle,
+                        WebkitBoxDecorationBreak: 'clone',
+                        boxDecorationBreak: 'clone',
+                        color: 'transparent',
+                        textShadow: 'none'
+                      } : {}}
                     >
-                      ${hasMath && !isMathRendered ? html`
-                        <span 
-                          className="inline rounded-xl bg-slate-200/85 text-transparent select-none animate-pulse box-decoration-clone px-1 py-0.5"
-                          style=${{
-                            WebkitBoxDecorationBreak: 'clone',
-                            boxDecorationBreak: 'clone',
-                            userSelect: 'none',
-                            color: 'transparent',
-                            textShadow: 'none'
-                          }}
-                        >
-                          ${currentNode?.title || ''}
-                        </span>
-                      ` : (currentNode?.title || '')}
+                      ${currentNode?.title || ''}
                     </h1>
                   </div>
                 </div>
